@@ -5,6 +5,12 @@ export interface GoogleMediaConfig {
   defaultOutputDir: string;
   dryRun: boolean;
   killSwitch: boolean;
+  instagramAccessToken?: string;
+  instagramBusinessAccountId?: string;
+  instagramApiBaseUrl: string;
+  tiktokAccessToken?: string;
+  tiktokCreatorId?: string;
+  tiktokApiBaseUrl: string;
 }
 
 export type GoogleMediaConfigInput = Partial<GoogleMediaConfig>;
@@ -35,12 +41,29 @@ export function loadConfig(overrides: GoogleMediaConfigInput = {}): GoogleMediaC
     overrides.dryRun ?? parseBoolean(process.env.GOOGLE_MEDIA_DRY_RUN) ?? false;
   const killSwitch =
     overrides.killSwitch ?? parseBoolean(process.env.GOOGLE_MEDIA_KILL_SWITCH) ?? false;
+  const instagramAccessToken =
+    overrides.instagramAccessToken ?? process.env.INSTAGRAM_ACCESS_TOKEN ?? undefined;
+  const instagramBusinessAccountId =
+    overrides.instagramBusinessAccountId ?? process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID ?? undefined;
+  const instagramApiBaseUrl =
+    overrides.instagramApiBaseUrl ?? process.env.INSTAGRAM_API_BASE_URL ?? 'https://graph.facebook.com/v23.0';
+  const tiktokAccessToken =
+    overrides.tiktokAccessToken ?? process.env.TIKTOK_ACCESS_TOKEN ?? undefined;
+  const tiktokCreatorId = overrides.tiktokCreatorId ?? process.env.TIKTOK_CREATOR_ID ?? undefined;
+  const tiktokApiBaseUrl =
+    overrides.tiktokApiBaseUrl ?? process.env.TIKTOK_API_BASE_URL ?? 'https://open.tiktokapis.com/v2';
 
   return {
     geminiApiKey,
     defaultOutputDir,
     dryRun,
     killSwitch,
+    instagramAccessToken,
+    instagramBusinessAccountId,
+    instagramApiBaseUrl,
+    tiktokAccessToken,
+    tiktokCreatorId,
+    tiktokApiBaseUrl,
   };
 }
 
@@ -60,4 +83,46 @@ export function requireGeminiApiKey(
   }
 
   return apiKey;
+}
+
+export function requireInstagramPublishConfig(config: GoogleMediaConfig): {
+  accessToken: string;
+  businessAccountId: string;
+  apiBaseUrl: string;
+} {
+  const accessToken = config.instagramAccessToken?.trim();
+  const businessAccountId = config.instagramBusinessAccountId?.trim();
+
+  if (!accessToken || !businessAccountId) {
+    throw new Error(
+      'Instagram publishing is not configured. Set instagramAccessToken and instagramBusinessAccountId in plugin config or environment.',
+    );
+  }
+
+  return {
+    accessToken,
+    businessAccountId,
+    apiBaseUrl: config.instagramApiBaseUrl,
+  };
+}
+
+export function requireTikTokPublishConfig(config: GoogleMediaConfig): {
+  accessToken: string;
+  creatorId: string;
+  apiBaseUrl: string;
+} {
+  const accessToken = config.tiktokAccessToken?.trim();
+  const creatorId = config.tiktokCreatorId?.trim();
+
+  if (!accessToken || !creatorId) {
+    throw new Error(
+      'TikTok publishing is not configured. Set tiktokAccessToken and tiktokCreatorId in plugin config or environment.',
+    );
+  }
+
+  return {
+    accessToken,
+    creatorId,
+    apiBaseUrl: config.tiktokApiBaseUrl,
+  };
 }

@@ -4,7 +4,16 @@ import os from 'os';
 import path from 'path';
 
 import { loadConfig } from '../lib/config.js';
-import { initStore, createRun, getRunById, saveGeneratedAsset, saveRenderedVideo, updateRunStatus } from '../lib/store.js';
+import {
+  createRun,
+  getPublishedPostByRunAndPlatform,
+  getRunById,
+  initStore,
+  saveGeneratedAsset,
+  savePublishedPost,
+  saveRenderedVideo,
+  updateRunStatus,
+} from '../lib/store.js';
 
 describe('SQLite store', () => {
   test('persists runs and artifacts', async () => {
@@ -44,8 +53,25 @@ describe('SQLite store', () => {
       metadata: { summaryPath: '/tmp/run.json' },
     });
 
+    const publication = savePublishedPost(store, {
+      id: 'publication-1',
+      runId: 'run-1',
+      platform: 'instagram',
+      status: 'dry_run',
+      caption: 'hello world',
+      videoPath: '/tmp/video.mp4',
+      videoUrl: 'https://example.com/video.mp4',
+      platformPostId: 'dryrun-instagram-run-1',
+      permalink: undefined,
+      metadata: { dryRun: true },
+    });
+
     expect(updatedRun.status).toBe('rendered');
     expect(updatedRun.metadata.summaryPath).toBe('/tmp/run.json');
     expect(getRunById(store, 'run-1')?.id).toBe('run-1');
+    expect(publication.status).toBe('dry_run');
+    expect(getPublishedPostByRunAndPlatform(store, 'run-1', 'instagram')?.platformPostId).toBe(
+      'dryrun-instagram-run-1',
+    );
   });
 });

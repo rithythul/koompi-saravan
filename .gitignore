@@ -30,3 +30,6 @@ outputs/
 
 # Logs
 *.log
+
+# Test artifacts
+coverage/

@@ -7,6 +7,8 @@ import {
   spring,
 } from "remotion";
 
+import "./HookReveal.css";
+
 interface HookRevealProps {
   hookText: string;
   revealText: string;
@@ -70,99 +72,47 @@ export const HookReveal: React.FC<HookRevealProps> = ({
     extrapolateRight: "clamp",
   });
 
-  // Background pulse effect
-  const bgPulse = Math.sin(frame * 0.05) * 0.05 + 1;
+  const rootStyle = {
+    "--background-color": backgroundColor,
+    "--hook-color": hookColor,
+    "--reveal-color": revealColor,
+    "--hook-opacity": String(hookOpacity * hookExitOpacity),
+    "--hook-transform": `scale(${hookScale}) translateY(${hookY}px)`,
+    "--reveal-opacity": String(revealOpacity),
+    "--reveal-transform": `scale(${revealScale}) translateY(${revealY}px)`,
+  } as React.CSSProperties;
 
   return (
-    <AbsoluteFill
-      style={{
-        backgroundColor,
-        justifyContent: "center",
-        alignItems: "center",
-        fontFamily: "'Inter', sans-serif",
-        padding: 60,
-      }}
-    >
+    <AbsoluteFill className="hook-reveal-root" style={rootStyle}>
       {/* Optional background image */}
       {imageUrl && (
-        <AbsoluteFill>
+        <AbsoluteFill className="hook-reveal-background-fill">
           <img
+            className="hook-reveal-background-image"
             src={imageUrl}
             alt="Hook reveal background"
             title="Hook reveal background"
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              opacity: 0.3,
-            }}
           />
         </AbsoluteFill>
       )}
 
       {/* Hook text */}
-      <div
-        style={{
-          opacity: hookOpacity * hookExitOpacity,
-          transform: `scale(${hookScale}) translateY(${hookY}px)`,
-          position: "absolute",
-          textAlign: "center",
-        }}
-      >
-        <h1
-          style={{
-            fontSize: 80,
-            fontWeight: 800,
-            color: hookColor,
-            textTransform: "uppercase",
-            letterSpacing: -2,
-            margin: 0,
-            textShadow: "0 4px 30px rgba(0,0,0,0.5)",
-          }}
-        >
+      <div className="hook-reveal-hook-container">
+        <h1 className="hook-reveal-hook-text">
           {hookText}
         </h1>
       </div>
 
       {/* Reveal text */}
-      <div
-        style={{
-          opacity: revealOpacity,
-          transform: `scale(${revealScale}) translateY(${revealY}px)`,
-          position: "absolute",
-          textAlign: "center",
-        }}
-      >
-        <h1
-          style={{
-            fontSize: 72,
-            fontWeight: 700,
-            color: revealColor,
-            lineHeight: 1.2,
-            margin: 0,
-            textShadow: "0 4px 30px rgba(255,107,53,0.5)",
-          }}
-        >
+      <div className="hook-reveal-reveal-container">
+        <h1 className="hook-reveal-reveal-text">
           {revealText}
         </h1>
       </div>
 
       {/* Bottom branding bar */}
-      <AbsoluteFill
-        style={{
-          justifyContent: "flex-end",
-          alignItems: "center",
-          paddingBottom: 80,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 32,
-            fontWeight: 600,
-            color: "rgba(255,255,255,0.6)",
-            letterSpacing: 2,
-          }}
-        >
+      <AbsoluteFill className="hook-reveal-branding-fill">
+        <div className="hook-reveal-branding-text">
           @saravan
         </div>
       </AbsoluteFill>

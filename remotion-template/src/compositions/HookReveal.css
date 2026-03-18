@@ -1,0 +1,69 @@
+.hook-reveal-root {
+  background-color: var(--background-color);
+  justify-content: center;
+  align-items: center;
+  font-family: 'Inter', sans-serif;
+  padding: 60px;
+}
+
+.hook-reveal-background-fill {
+  inset: 0;
+}
+
+.hook-reveal-background-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.3;
+}
+
+.hook-reveal-hook-container,
+.hook-reveal-reveal-container {
+  position: absolute;
+  text-align: center;
+}
+
+.hook-reveal-hook-container {
+  opacity: var(--hook-opacity);
+  transform: var(--hook-transform);
+}
+
+.hook-reveal-reveal-container {
+  opacity: var(--reveal-opacity);
+  transform: var(--reveal-transform);
+}
+
+.hook-reveal-hook-text,
+.hook-reveal-reveal-text {
+  margin: 0;
+}
+
+.hook-reveal-hook-text {
+  font-size: 80px;
+  font-weight: 800;
+  color: var(--hook-color);
+  text-transform: uppercase;
+  letter-spacing: -2px;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+.hook-reveal-reveal-text {
+  font-size: 72px;
+  font-weight: 700;
+  color: var(--reveal-color);
+  line-height: 1.2;
+  text-shadow: 0 4px 30px rgba(255, 107, 53, 0.5);
+}
+
+.hook-reveal-branding-fill {
+  justify-content: flex-end;
+  align-items: center;
+  padding-bottom: 80px;
+}
+
+.hook-reveal-branding-text {
+  font-size: 32px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 2px;
+}

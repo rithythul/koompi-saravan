@@ -34,3 +34,20 @@ CREATE TABLE IF NOT EXISTS rendered_videos (
   created_at TEXT NOT NULL,
   FOREIGN KEY (run_id) REFERENCES content_runs(id)
 );
+
+CREATE TABLE IF NOT EXISTS published_posts (
+  id TEXT PRIMARY KEY,
+  run_id TEXT NOT NULL,
+  platform TEXT NOT NULL,
+  status TEXT NOT NULL,
+  caption TEXT NOT NULL,
+  video_path TEXT NOT NULL,
+  video_url TEXT,
+  platform_post_id TEXT,
+  permalink TEXT,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE (run_id, platform),
+  FOREIGN KEY (run_id) REFERENCES content_runs(id)
+);

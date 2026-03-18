@@ -31,11 +31,12 @@ saravan-media/
 | google-media extension | ✅ Built | Nano Banana tool ready |
 | HookReveal template | ✅ Built | 5-second hook→reveal video |
 | Remotion render API | ✅ Built | Programmatic rendering |
+| publish tools | ✅ Built | TikTok + Instagram publishing with dry-run and idempotency |
+| analytics tools | ✅ Built | Post logging, analytics pull, pattern analysis, schedule generation |
 | Veo tool | 🔲 Todo | Waiting for API access |
 | Lyria tool | 🔲 Todo | Music generation |
 | TTS tool | 🔲 Todo | Voiceover generation |
-| tiktok-publisher | 🔲 Todo | Posting + analytics |
-| instagram-publisher | 🔲 Todo | Posting + analytics |
+| real conversion loop | 🔲 Todo | Attribution + next-post planning |
 
 ## Quick Start
 
@@ -46,10 +47,27 @@ cd extensions/google-media && bun install
 cd ../../remotion-template && bun install
 ```
 
-### Set up Gemini API key
+### Set up environment variables
+
+Create a local `.env` file from `.env.example` and fill in the secrets:
+
+```bash
+cp .env.example .env
+```
+
+For local development, `.env` is the right place for API keys because it is already ignored by git in [.gitignore](.gitignore).
+For production or hosted automation, use your secret manager or deployment environment variables instead of committing secrets anywhere.
+
+If you run the tools with Bun, `.env` is loaded automatically. If OpenClaw is launched another way, make sure the same variables are exported into that process.
+
+Minimum setup:
 
 ```bash
 export GEMINI_API_KEY=your-key-here
+export INSTAGRAM_ACCESS_TOKEN=your-instagram-token
+export INSTAGRAM_BUSINESS_ACCOUNT_ID=your-instagram-business-account-id
+export TIKTOK_ACCESS_TOKEN=your-tiktok-token
+export TIKTOK_CREATOR_ID=your-tiktok-creator-id
 ```
 
 ### Test image generation (once plugin loaded in OpenClaw)
@@ -79,10 +97,10 @@ bun run build    # Render HookReveal composition
 
 ## Next Steps
 
-1. Install dependencies and test Nano Banana
-2. Add Veo tool when API access granted
-3. Build 4 more Remotion templates
-4. Create tiktok-publisher extension
+1. Configure real Instagram and TikTok credentials in `.env`
+2. Validate publish + analytics against sandbox/live accounts
+3. Add conversion ingestion and next-post planning
+4. Build more Remotion templates
 5. Wire up cron jobs for daily automation
 
 ## Cost Estimates

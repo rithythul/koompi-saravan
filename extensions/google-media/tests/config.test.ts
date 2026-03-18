@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 
-import { assertAutomationEnabled, loadConfig, requireGeminiApiKey } from '../lib/config.js';
+import {
+  assertAutomationEnabled,
+  loadConfig,
+  requireGeminiApiKey,
+  requireInstagramPublishConfig,
+  requireTikTokPublishConfig,
+} from '../lib/config.js';
 
 describe('config helpers', () => {
   test('loadConfig applies defaults and resolves output dir', () => {
@@ -24,6 +30,18 @@ describe('config helpers', () => {
   test('requireGeminiApiKey throws when no key is configured', () => {
     expect(() => requireGeminiApiKey(loadConfig({ geminiApiKey: '' }))).toThrow(
       'Gemini API key not configured',
+    );
+  });
+
+  test('requireInstagramPublishConfig throws when credentials are missing', () => {
+    expect(() => requireInstagramPublishConfig(loadConfig({}))).toThrow(
+      'Instagram publishing is not configured',
+    );
+  });
+
+  test('requireTikTokPublishConfig throws when credentials are missing', () => {
+    expect(() => requireTikTokPublishConfig(loadConfig({}))).toThrow(
+      'TikTok publishing is not configured',
     );
   });
 });
