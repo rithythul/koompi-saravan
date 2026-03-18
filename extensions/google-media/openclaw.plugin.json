@@ -1,0 +1,22 @@
+{
+  "id": "google-media",
+  "name": "Google Media Tools",
+  "description": "Nano Banana (image gen), Veo (video), Lyria (music), TTS for social media content",
+  "version": "0.1.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "geminiApiKey": {
+        "type": "string",
+        "description": "Google AI Studio API key for Gemini"
+      }
+    }
+  },
+  "uiHints": {
+    "geminiApiKey": {
+      "label": "Gemini API Key",
+      "sensitive": true
+    }
+  }
+}

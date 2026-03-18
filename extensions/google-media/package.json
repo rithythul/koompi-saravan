@@ -1,0 +1,10 @@
+{
+  "name": "openclaw-plugin-google-media",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "index.ts",
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "@sinclair/typebox": "^0.34.0"
+  }
+}
