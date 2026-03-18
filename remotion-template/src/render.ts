@@ -7,28 +7,52 @@
 
 import { bundle } from "@remotion/bundler";
 import { renderMedia, selectComposition } from "@remotion/renderer";
+import { fileURLToPath } from "url";
 import path from "path";
 import fs from "fs/promises";
 
+export const SUPPORTED_COMPOSITIONS = ["HookReveal"] as const;
+
+export type SupportedCompositionId = (typeof SUPPORTED_COMPOSITIONS)[number];
+
 export interface RenderOptions {
-  compositionId: string;
-  inputProps: Record<string, any>;
+  compositionId: SupportedCompositionId;
+  inputProps: Record<string, unknown>;
   outputPath: string;
-  fps?: number;
+}
+
+export interface RenderResult {
+  success: boolean;
+  outputPath: string;
+  compositionId: SupportedCompositionId;
   width?: number;
   height?: number;
+  fps?: number;
+  durationInFrames?: number;
+  error?: string;
+}
+
+export function getRemotionProjectRoot(): string {
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+}
+
+export function assertSupportedCompositionId(
+  compositionId: string,
+): asserts compositionId is SupportedCompositionId {
+  if (!SUPPORTED_COMPOSITIONS.includes(compositionId as SupportedCompositionId)) {
+    throw new Error(
+      `Unsupported composition id: ${compositionId}. Supported compositions: ${SUPPORTED_COMPOSITIONS.join(', ')}`,
+    );
+  }
 }
 
 /**
  * Render a video composition to MP4
  */
-export async function renderVideo(options: RenderOptions): Promise<{
-  success: boolean;
-  outputPath: string;
-  error?: string;
-}> {
+export async function renderVideo(options: RenderOptions): Promise<RenderResult> {
   try {
-    const projectRoot = path.dirname(new URL(import.meta.url).pathname);
+    assertSupportedCompositionId(options.compositionId);
+    const projectRoot = getRemotionProjectRoot();
     
     // Bundle the Remotion project
     console.log(`Bundling Remotion project...`);
@@ -61,11 +85,17 @@ export async function renderVideo(options: RenderOptions): Promise<{
 
     return {
       success: true,
+      compositionId: options.compositionId,
       outputPath: options.outputPath,
+      width: composition.width,
+      height: composition.height,
+      fps: composition.fps,
+      durationInFrames: composition.durationInFrames,
     };
   } catch (error) {
     return {
       success: false,
+      compositionId: options.compositionId,
       outputPath: options.outputPath,
       error: error instanceof Error ? error.message : "Unknown render error",
     };
@@ -83,7 +113,7 @@ export async function renderHookReveal(options: {
   revealColor?: string;
   backgroundColor?: string;
   imageUrl?: string;
-}): Promise<{ success: boolean; outputPath: string; error?: string }> {
+}): Promise<RenderResult> {
   return renderVideo({
     compositionId: "HookReveal",
     inputProps: {

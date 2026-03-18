@@ -3,8 +3,16 @@
   "version": "0.1.0",
   "type": "module",
   "main": "index.ts",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
     "@sinclair/typebox": "^0.34.0"
+  },
+  "devDependencies": {
+    "bun-types": "^1.2.5",
+    "typescript": "^5.8.2"
   }
 }

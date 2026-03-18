@@ -88,6 +88,8 @@ export const HookReveal: React.FC<HookRevealProps> = ({
         <AbsoluteFill>
           <img
             src={imageUrl}
+            alt="Hook reveal background"
+            title="Hook reveal background"
             style={{
               width: "100%",
               height: "100%",

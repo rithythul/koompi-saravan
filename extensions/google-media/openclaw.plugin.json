@@ -10,6 +10,18 @@
       "geminiApiKey": {
         "type": "string",
         "description": "Google AI Studio API key for Gemini"
+      },
+      "defaultOutputDir": {
+        "type": "string",
+        "description": "Root directory where generated assets and rendered videos are stored"
+      },
+      "dryRun": {
+        "type": "boolean",
+        "description": "Generate and render assets without publishing side effects"
+      },
+      "killSwitch": {
+        "type": "boolean",
+        "description": "Stop all automation when set to true"
       }
     }
   },
@@ -17,6 +29,15 @@
     "geminiApiKey": {
       "label": "Gemini API Key",
       "sensitive": true
+    },
+    "defaultOutputDir": {
+      "label": "Output Directory"
+    },
+    "dryRun": {
+      "label": "Dry Run"
+    },
+    "killSwitch": {
+      "label": "Kill Switch"
     }
   }
 }

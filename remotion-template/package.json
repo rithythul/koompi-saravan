@@ -5,17 +5,22 @@
   "scripts": {
     "start": "remotion studio",
     "build": "remotion render HookReveal out/hook-reveal.mp4",
-    "render": "remotion render"
+    "render": "remotion render",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@remotion/bundler": "^4.0.0",
     "@remotion/cli": "^4.0.0",
     "@remotion/player": "^4.0.0",
+    "@remotion/renderer": "^4.0.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "remotion": "^4.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",
+    "bun-types": "^1.2.5",
     "typescript": "^5.0.0"
   }
 }
