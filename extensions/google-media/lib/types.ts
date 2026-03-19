@@ -9,6 +9,9 @@ export type ContentVariant =
   | 'countdown_list'
   | (string & {});
 export type ScheduleStrategy = 'optimized' | 'exploration' | 'manual';
+export type ConversionType = 'lead' | 'signup' | 'purchase' | 'click' | 'dm' | 'other';
+export type PlanningObjective = 'conversions' | 'revenue' | 'engagement';
+export type PlannedPostStatus = 'planned' | 'queued' | 'completed' | 'cancelled';
 
 export interface ContentRun {
   id: string;
@@ -209,4 +212,41 @@ export interface OptimizedSchedule {
     reason: string;
   }>;
   generatedAt: string;
+}
+
+export interface ConversionEvent {
+  id: string;
+  postId: string;
+  occurredAt: string;
+  eventType: ConversionType;
+  value?: number;
+  currency?: string;
+  quantity: number;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface PostPerformanceRow extends PostWithLatestMetric {
+  conversionCount: number;
+  revenue: number;
+  lastConversionAt?: string;
+}
+
+export interface PlannedPost {
+  id: string;
+  platform: Platform;
+  scheduledFor: string;
+  contentType: ContentVariant;
+  scheduleStrategy: ScheduleStrategy;
+  confidence: number;
+  reason: string;
+  hookText?: string;
+  caption?: string;
+  objective: PlanningObjective;
+  sourcePostIds: string[];
+  runId?: string;
+  status: PlannedPostStatus;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
 }

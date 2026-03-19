@@ -1,5 +1,5 @@
 import type { ComponentType, FC } from "react";
-import { Composition } from "remotion";
+import { Composition, registerRoot } from "remotion";
 import { HookReveal } from "./src/compositions/HookReveal";
 
 /**
@@ -26,3 +26,5 @@ export const RemotionRoot: FC = () => {
     </>
   );
 };
+
+registerRoot(RemotionRoot);

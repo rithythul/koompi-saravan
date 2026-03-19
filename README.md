@@ -33,10 +33,11 @@ saravan-media/
 | Remotion render API | ✅ Built | Programmatic rendering |
 | publish tools | ✅ Built | TikTok + Instagram publishing with dry-run and idempotency |
 | analytics tools | ✅ Built | Post logging, analytics pull, pattern analysis, schedule generation |
+| conversion loop | ✅ Built | Conversion logging, next-post planning, daily plan generation |
 | Veo tool | 🔲 Todo | Waiting for API access |
 | Lyria tool | 🔲 Todo | Music generation |
 | TTS tool | 🔲 Todo | Voiceover generation |
-| real conversion loop | 🔲 Todo | Attribution + next-post planning |
+| autonomous execution loop | 🔲 Todo | Run planned posts end-to-end without manual intervention |
 
 ## Quick Start
 
@@ -76,6 +77,23 @@ export TIKTOK_CREATOR_ID=your-tiktok-creator-id
 Use nano_banana tool with prompt: "A colorful tropical dessert on a wooden table, food photography"
 ```
 
+### Phase 5 / 6 loop tools
+
+Available planning tools now include:
+
+- `log_conversion`
+- `plan_next_post`
+- `build_daily_plan`
+- `update_hour_performance`
+
+Recommended loop:
+
+1. Publish content and record the post with `log_post`
+2. Pull metrics with `pull_analytics`
+3. Record downstream outcomes with `log_conversion`
+4. Generate the next recommendation with `plan_next_post`
+5. Generate a full day queue with `build_daily_plan`
+
 ### Render a test video
 
 ```bash
@@ -99,9 +117,9 @@ bun run build    # Render HookReveal composition
 
 1. Configure real Instagram and TikTok credentials in `.env`
 2. Validate publish + analytics against sandbox/live accounts
-3. Add conversion ingestion and next-post planning
+3. Wire `build_daily_plan` into scheduled OpenClaw jobs
 4. Build more Remotion templates
-5. Wire up cron jobs for daily automation
+5. Add richer attribution inputs if conversions come from external systems
 
 ## Cost Estimates
 

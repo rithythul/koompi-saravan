@@ -5,6 +5,7 @@ export interface GoogleMediaConfig {
   defaultOutputDir: string;
   dryRun: boolean;
   killSwitch: boolean;
+  publicMediaBaseUrl?: string;
   instagramAccessToken?: string;
   instagramBusinessAccountId?: string;
   instagramApiBaseUrl: string;
@@ -41,6 +42,8 @@ export function loadConfig(overrides: GoogleMediaConfigInput = {}): GoogleMediaC
     overrides.dryRun ?? parseBoolean(process.env.GOOGLE_MEDIA_DRY_RUN) ?? false;
   const killSwitch =
     overrides.killSwitch ?? parseBoolean(process.env.GOOGLE_MEDIA_KILL_SWITCH) ?? false;
+  const publicMediaBaseUrl =
+    overrides.publicMediaBaseUrl ?? process.env.GOOGLE_MEDIA_PUBLIC_BASE_URL ?? undefined;
   const instagramAccessToken =
     overrides.instagramAccessToken ?? process.env.INSTAGRAM_ACCESS_TOKEN ?? undefined;
   const instagramBusinessAccountId =
@@ -58,6 +61,7 @@ export function loadConfig(overrides: GoogleMediaConfigInput = {}): GoogleMediaC
     defaultOutputDir,
     dryRun,
     killSwitch,
+    publicMediaBaseUrl,
     instagramAccessToken,
     instagramBusinessAccountId,
     instagramApiBaseUrl,

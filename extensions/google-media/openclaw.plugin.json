@@ -23,6 +23,10 @@
         "type": "boolean",
         "description": "Stop all automation when set to true"
       },
+      "publicMediaBaseUrl": {
+        "type": "string",
+        "description": "Optional public base URL that serves files under the managed output directory for live publishing"
+      },
       "instagramAccessToken": {
         "type": "string",
         "description": "Instagram Graph API access token for publishing and analytics"
@@ -62,6 +66,9 @@
     },
     "killSwitch": {
       "label": "Kill Switch"
+    },
+    "publicMediaBaseUrl": {
+      "label": "Public Media Base URL"
     },
     "instagramAccessToken": {
       "label": "Instagram Access Token",

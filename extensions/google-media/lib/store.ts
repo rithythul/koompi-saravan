@@ -8,10 +8,13 @@ import type { GoogleMediaConfig } from './config.js';
 import { getOutputRoot } from './output-paths.js';
 import type {
   ContentRun,
+  ConversionEvent,
+  PlannedPost,
   GeneratedAsset,
   HourPerformance,
   Post,
   PostMetric,
+  PostPerformanceRow,
   PostWithLatestMetric,
   PublishedPost,
   RenderedVideo,
@@ -183,6 +186,42 @@ function mapPublishedPost(row: Record<string, unknown>): PublishedPost {
   };
 }
 
+function mapConversionEvent(row: Record<string, unknown>): ConversionEvent {
+  return {
+    id: String(row.id),
+    postId: String(row.post_id),
+    occurredAt: String(row.occurred_at),
+    eventType: String(row.event_type) as ConversionEvent['eventType'],
+    value:
+      row.value === null || row.value === undefined ? undefined : Number(row.value),
+    currency: row.currency ? String(row.currency) : undefined,
+    quantity: Number(row.quantity ?? 1),
+    metadata: parseJsonObject(row.metadata_json),
+    createdAt: String(row.created_at),
+  };
+}
+
+function mapPlannedPost(row: Record<string, unknown>): PlannedPost {
+  return {
+    id: String(row.id),
+    platform: row.platform as PlannedPost['platform'],
+    scheduledFor: String(row.scheduled_for),
+    contentType: row.content_type as PlannedPost['contentType'],
+    scheduleStrategy: row.schedule_strategy as PlannedPost['scheduleStrategy'],
+    confidence: Number(row.confidence),
+    reason: String(row.reason),
+    hookText: row.hook_text ? String(row.hook_text) : undefined,
+    caption: row.caption ? String(row.caption) : undefined,
+    objective: row.objective as PlannedPost['objective'],
+    sourcePostIds: parseJsonArray(row.source_post_ids),
+    runId: row.run_id ? String(row.run_id) : undefined,
+    status: row.status as PlannedPost['status'],
+    metadata: parseJsonObject(row.metadata_json),
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  };
+}
+
 function scoreHourPerformanceRows(rows: Array<Omit<HourPerformance, 'performanceScore'>>): HourPerformance[] {
   const groups = new Map<string, Array<Omit<HourPerformance, 'performanceScore'>>>();
 
@@ -272,6 +311,57 @@ export function getLatestRenderedVideoForRun(
     .get(runId) as Record<string, unknown> | undefined;
 
   return row ? mapRenderedVideo(row) : null;
+}
+
+export function getPostById(store: GoogleMediaStore, postId: string): Post | null {
+  const row = store.db
+    .prepare('SELECT * FROM posts WHERE id = ? LIMIT 1')
+    .get(postId) as Record<string, unknown> | undefined;
+
+  return row ? mapPost(row) : null;
+}
+
+export function getPostByPlatformPostId(
+  store: GoogleMediaStore,
+  platform: Post['platform'],
+  platformPostId: string,
+): Post | null {
+  const row = store.db
+    .prepare(
+      `SELECT * FROM posts
+       WHERE platform = ? AND platform_post_id = ?
+       ORDER BY posted_at DESC
+       LIMIT 1`,
+    )
+    .get(platform, platformPostId) as Record<string, unknown> | undefined;
+
+  return row ? mapPost(row) : null;
+}
+
+export function getPostByRunId(
+  store: GoogleMediaStore,
+  runId: string,
+  platform?: Post['platform'],
+): Post | null {
+  const row = platform
+    ? (store.db
+        .prepare(
+          `SELECT * FROM posts
+           WHERE run_id = ? AND platform = ?
+           ORDER BY posted_at DESC
+           LIMIT 1`,
+        )
+        .get(runId, platform) as Record<string, unknown> | undefined)
+    : (store.db
+        .prepare(
+          `SELECT * FROM posts
+           WHERE run_id = ?
+           ORDER BY posted_at DESC
+           LIMIT 1`,
+        )
+        .get(runId) as Record<string, unknown> | undefined);
+
+  return row ? mapPost(row) : null;
 }
 
 export function savePost(
@@ -376,6 +466,51 @@ export function savePostMetric(
   };
 }
 
+export function saveConversionEvent(
+  store: GoogleMediaStore,
+  conversion: Omit<ConversionEvent, 'createdAt'>,
+): ConversionEvent {
+  const createdAt = new Date().toISOString();
+
+  store.db
+    .prepare(
+      `INSERT INTO conversion_events (
+         id, post_id, occurred_at, event_type, value, currency, quantity, metadata_json, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      conversion.id,
+      conversion.postId,
+      conversion.occurredAt,
+      conversion.eventType,
+      conversion.value ?? null,
+      conversion.currency ?? null,
+      conversion.quantity,
+      serializeMetadata(conversion.metadata),
+      createdAt,
+    );
+
+  return {
+    ...conversion,
+    createdAt,
+  };
+}
+
+export function getConversionsForPost(
+  store: GoogleMediaStore,
+  postId: string,
+): ConversionEvent[] {
+  const rows = store.db
+    .prepare(
+      `SELECT * FROM conversion_events
+       WHERE post_id = ?
+       ORDER BY occurred_at DESC`,
+    )
+    .all(postId) as Record<string, unknown>[];
+
+  return rows.map(mapConversionEvent);
+}
+
 export function getPostsMetricsJoined(
   store: GoogleMediaStore,
   options: {
@@ -437,6 +572,90 @@ export function getPostsMetricsJoined(
     impressions: Number(row.impressions ?? 0),
     platformData: parseJsonObject(row.platform_data),
     metricCreatedAt: row.metric_created_at ? String(row.metric_created_at) : undefined,
+  }));
+}
+
+export function getPostPerformanceRows(
+  store: GoogleMediaStore,
+  options: {
+    platform: Post['platform'];
+    daysBack: number;
+  },
+): PostPerformanceRow[] {
+  const since = new Date(Date.now() - options.daysBack * 24 * 60 * 60 * 1000).toISOString();
+
+  const rows = store.db
+    .prepare(
+      `WITH latest_metrics AS (
+         SELECT pm.*
+         FROM post_metrics pm
+         INNER JOIN (
+           SELECT post_id, MAX(pulled_at) AS max_pulled_at
+           FROM post_metrics
+           GROUP BY post_id
+         ) latest
+           ON latest.post_id = pm.post_id
+          AND latest.max_pulled_at = pm.pulled_at
+       ), conversion_rollup AS (
+         SELECT
+           post_id,
+           SUM(quantity) AS conversion_count,
+           SUM(COALESCE(value, 0) * COALESCE(quantity, 1)) AS revenue,
+           MAX(occurred_at) AS last_conversion_at
+         FROM conversion_events
+         GROUP BY post_id
+       )
+       SELECT
+         p.*,
+         m.id AS metric_id,
+         m.pulled_at,
+         m.views,
+         m.likes,
+         m.comments,
+         m.shares,
+         m.saves,
+         m.completion_rate,
+         m.avg_watch_time_seconds,
+         m.reach,
+         m.impressions,
+         m.platform_data,
+         m.created_at AS metric_created_at,
+         cr.conversion_count,
+         cr.revenue,
+         cr.last_conversion_at
+       FROM posts p
+       LEFT JOIN latest_metrics m ON m.post_id = p.id
+       LEFT JOIN conversion_rollup cr ON cr.post_id = p.id
+       WHERE p.platform = ?
+         AND p.posted_at >= ?
+       ORDER BY p.posted_at DESC`,
+    )
+    .all(options.platform, since) as Record<string, unknown>[];
+
+  return rows.map((row) => ({
+    ...mapPost(row),
+    metricId: row.metric_id ? String(row.metric_id) : undefined,
+    pulledAt: row.pulled_at ? String(row.pulled_at) : undefined,
+    views: Number(row.views ?? 0),
+    likes: Number(row.likes ?? 0),
+    comments: Number(row.comments ?? 0),
+    shares: Number(row.shares ?? 0),
+    saves: Number(row.saves ?? 0),
+    completionRate:
+      row.completion_rate === null || row.completion_rate === undefined
+        ? undefined
+        : Number(row.completion_rate),
+    avgWatchTimeSeconds:
+      row.avg_watch_time_seconds === null || row.avg_watch_time_seconds === undefined
+        ? undefined
+        : Number(row.avg_watch_time_seconds),
+    reach: Number(row.reach ?? 0),
+    impressions: Number(row.impressions ?? 0),
+    platformData: parseJsonObject(row.platform_data),
+    metricCreatedAt: row.metric_created_at ? String(row.metric_created_at) : undefined,
+    conversionCount: Number(row.conversion_count ?? 0),
+    revenue: Number(row.revenue ?? 0),
+    lastConversionAt: row.last_conversion_at ? String(row.last_conversion_at) : undefined,
   }));
 }
 
@@ -749,4 +968,127 @@ export function savePublishedPost(
     );
 
   return getPublishedPostByRunAndPlatform(store, publication.runId, publication.platform)!;
+}
+
+export function savePlannedPost(
+  store: GoogleMediaStore,
+  plannedPost: Omit<PlannedPost, 'createdAt' | 'updatedAt'>,
+): PlannedPost {
+  const existing = getPlannedPostById(store, plannedPost.id);
+  const createdAt = existing?.createdAt ?? new Date().toISOString();
+  const updatedAt = new Date().toISOString();
+
+  store.db
+    .prepare(
+      `INSERT INTO planned_posts (
+         id, platform, scheduled_for, content_type, schedule_strategy, confidence,
+         reason, hook_text, caption, objective, source_post_ids, run_id, status,
+         metadata_json, created_at, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         platform = excluded.platform,
+         scheduled_for = excluded.scheduled_for,
+         content_type = excluded.content_type,
+         schedule_strategy = excluded.schedule_strategy,
+         confidence = excluded.confidence,
+         reason = excluded.reason,
+         hook_text = excluded.hook_text,
+         caption = excluded.caption,
+         objective = excluded.objective,
+         source_post_ids = excluded.source_post_ids,
+         run_id = excluded.run_id,
+         status = excluded.status,
+         metadata_json = excluded.metadata_json,
+         updated_at = excluded.updated_at`,
+    )
+    .run(
+      plannedPost.id,
+      plannedPost.platform,
+      plannedPost.scheduledFor,
+      plannedPost.contentType,
+      plannedPost.scheduleStrategy,
+      plannedPost.confidence,
+      plannedPost.reason,
+      plannedPost.hookText ?? null,
+      plannedPost.caption ?? null,
+      plannedPost.objective,
+      serializeStringArray(plannedPost.sourcePostIds),
+      plannedPost.runId ?? null,
+      plannedPost.status,
+      serializeMetadata(plannedPost.metadata),
+      createdAt,
+      updatedAt,
+    );
+
+  return getPlannedPostById(store, plannedPost.id)!;
+}
+
+export function getPlannedPostById(
+  store: GoogleMediaStore,
+  plannedPostId: string,
+): PlannedPost | null {
+  const row = store.db
+    .prepare('SELECT * FROM planned_posts WHERE id = ? LIMIT 1')
+    .get(plannedPostId) as Record<string, unknown> | undefined;
+
+  return row ? mapPlannedPost(row) : null;
+}
+
+export function listPlannedPosts(
+  store: GoogleMediaStore,
+  options: {
+    date?: string;
+    platform?: PlannedPost['platform'];
+    status?: PlannedPost['status'];
+  } = {},
+): PlannedPost[] {
+  let sql = 'SELECT * FROM planned_posts WHERE 1 = 1';
+  const params: Array<string> = [];
+
+  if (options.date) {
+    sql += ' AND substr(scheduled_for, 1, 10) = ?';
+    params.push(options.date);
+  }
+
+  if (options.platform) {
+    sql += ' AND platform = ?';
+    params.push(options.platform);
+  }
+
+  if (options.status) {
+    sql += ' AND status = ?';
+    params.push(options.status);
+  }
+
+  sql += ' ORDER BY scheduled_for ASC';
+
+  const rows = store.db.prepare(sql).all(...params) as Record<string, unknown>[];
+  return rows.map(mapPlannedPost);
+}
+
+export function updatePlannedPostStatus(
+  store: GoogleMediaStore,
+  plannedPostId: string,
+  status: PlannedPost['status'],
+  metadata?: Record<string, unknown>,
+): PlannedPost {
+  const existing = getPlannedPostById(store, plannedPostId);
+  if (!existing) {
+    throw new Error(`Planned post not found: ${plannedPostId}`);
+  }
+
+  const updatedMetadata = {
+    ...existing.metadata,
+    ...(metadata ?? {}),
+  };
+
+  store.db
+    .prepare(
+      `UPDATE planned_posts
+       SET status = ?, metadata_json = ?, updated_at = ?
+       WHERE id = ?`,
+    )
+    .run(status, serializeMetadata(updatedMetadata), new Date().toISOString(), plannedPostId);
+
+  return getPlannedPostById(store, plannedPostId)!;
 }

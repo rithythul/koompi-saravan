@@ -8,7 +8,10 @@ import { assertAutomationEnabled, loadConfig, type GoogleMediaConfigInput } from
 import { createRunOutputPaths, resolveSafeAssetPath } from '../lib/output-paths.js';
 import { createRun, getRunById, initStore, saveRenderedVideo, updateRunStatus } from '../lib/store.js';
 import type { RenderRequest } from '../lib/types.js';
+import type { RenderResult } from '../../../remotion-template/src/render.js';
 import { renderHookReveal } from '../../../remotion-template/src/render.js';
+
+const DRY_RUN_MP4_PLACEHOLDER = Buffer.from('dry-run-remotion-render');
 
 export function createRenderHookRevealTool(configOverrides: GoogleMediaConfigInput = {}) {
   return {
@@ -58,14 +61,27 @@ export function createRenderHookRevealTool(configOverrides: GoogleMediaConfigInp
         }
 
         const outputPath = resolveSafeAssetPath(run.outputDir, 'hook-reveal.mp4');
-        const renderResult = await renderHookReveal({
-          hookText: params.hookText,
-          revealText: params.revealText,
-          outputPath,
-          hookColor: params.hookColor,
-          revealColor: params.revealColor,
-          backgroundColor: params.backgroundColor,
-        });
+        const renderResult: RenderResult = config.dryRun
+          ? await (async () => {
+              await fs.writeFile(outputPath, DRY_RUN_MP4_PLACEHOLDER);
+              return {
+                success: true,
+                compositionId: 'HookReveal' as const,
+                outputPath,
+                width: 1080,
+                height: 1920,
+                fps: 30,
+                durationInFrames: 150,
+              };
+            })()
+          : await renderHookReveal({
+              hookText: params.hookText,
+              revealText: params.revealText,
+              outputPath,
+              hookColor: params.hookColor,
+              revealColor: params.revealColor,
+              backgroundColor: params.backgroundColor,
+            });
 
         if (!renderResult.success) {
           throw new Error(renderResult.error || 'Unknown Remotion render error');
