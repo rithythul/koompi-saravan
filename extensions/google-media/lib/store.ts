@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { Database } from 'bun:sqlite';
+import { Database } from './db.js';
 
 import type { GoogleMediaConfig } from './config.js';
 import { getOutputRoot } from './output-paths.js';
