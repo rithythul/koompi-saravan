@@ -1,7 +1,7 @@
 {
   "id": "google-media",
   "name": "Google Media Tools",
-  "description": "Nano Banana (image gen), Veo (video), Lyria (music), TTS for social media content",
+  "description": "Gemini generation, Remotion rendering, publishing, analytics, and planning tools for social media automation",
   "version": "0.1.0",
   "configSchema": {
     "type": "object",

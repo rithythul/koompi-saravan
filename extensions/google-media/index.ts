@@ -1,8 +1,8 @@
 /**
  * Google Media Tools - OpenClaw Plugin
- * 
- * Provides image generation (Nano Banana), video generation (Veo),
- * music generation (Lyria), and TTS for automated content creation.
+ *
+ * Provides generation, rendering, publishing, analytics, and planning tools
+ * for automated social media content workflows.
  */
 
 import type { GoogleMediaConfigInput } from './lib/config.js';
@@ -21,31 +21,51 @@ import { createRenderHookRevealTool, renderHookRevealTool } from './tools/render
 import { createRunDailyPlanTool, runDailyPlanTool } from './tools/run-daily-plan.js';
 import { createUpdateHourPerformanceTool, updateHourPerformanceTool } from './tools/update-hour-performance.js';
 
-export default function (api: {
-  registerTool: (tool: any, options?: { optional?: boolean }) => void;
-}, pluginContext?: { config?: GoogleMediaConfigInput }) {
+export type OpenClawTool = {
+  name: string;
+  description: string;
+  parameters: unknown;
+  execute: unknown;
+};
+
+export type OpenClawPluginApi = {
+  registerTool: (tool: OpenClawTool, options?: { optional?: boolean }) => void;
+};
+
+export type OpenClawPluginContext = {
+  config?: GoogleMediaConfigInput;
+};
+
+export function createRegisteredTools(configOverrides: GoogleMediaConfigInput = {}): OpenClawTool[] {
+  return [
+    createNanoBananaTool(configOverrides),
+    createRenderHookRevealTool(configOverrides),
+    createPublishInstagramTool(configOverrides),
+    createPublishTikTokTool(configOverrides),
+    createLogPostTool(configOverrides),
+    createLogConversionTool(configOverrides),
+    createPullAnalyticsTool(configOverrides),
+    createAnalyzePatternsTool(configOverrides),
+    createGenerateScheduleTool(configOverrides),
+    createPlanNextPostTool(configOverrides),
+    createBuildDailyPlanTool(configOverrides),
+    createExecutePlannedPostTool(configOverrides),
+    createRunDailyPlanTool(configOverrides),
+    createUpdateHourPerformanceTool(configOverrides),
+  ];
+}
+
+export const registeredToolNames = createRegisteredTools().map((tool) => tool.name);
+
+export default function registerGoogleMediaPlugin(
+  api: OpenClawPluginApi,
+  pluginContext?: OpenClawPluginContext,
+) {
   const configOverrides = pluginContext?.config ?? {};
 
-  // Core image generation tool
-  api.registerTool(createNanoBananaTool(configOverrides));
-  api.registerTool(createRenderHookRevealTool(configOverrides));
-  api.registerTool(createPublishInstagramTool(configOverrides));
-  api.registerTool(createPublishTikTokTool(configOverrides));
-  api.registerTool(createLogPostTool(configOverrides));
-  api.registerTool(createLogConversionTool(configOverrides));
-  api.registerTool(createPullAnalyticsTool(configOverrides));
-  api.registerTool(createAnalyzePatternsTool(configOverrides));
-  api.registerTool(createGenerateScheduleTool(configOverrides));
-  api.registerTool(createPlanNextPostTool(configOverrides));
-  api.registerTool(createBuildDailyPlanTool(configOverrides));
-  api.registerTool(createExecutePlannedPostTool(configOverrides));
-  api.registerTool(createRunDailyPlanTool(configOverrides));
-  api.registerTool(createUpdateHourPerformanceTool(configOverrides));
-  
-  // Future tools (to be implemented):
-  // api.registerTool(veoTool, { optional: true });
-  // api.registerTool(lyriaTool, { optional: true });
-  // api.registerTool(ttsTool, { optional: true });
+  for (const tool of createRegisteredTools(configOverrides)) {
+    api.registerTool(tool);
+  }
 }
 
 // Export tools for direct use
