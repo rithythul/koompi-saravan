@@ -6,12 +6,32 @@ export interface GoogleMediaConfig {
   dryRun: boolean;
   killSwitch: boolean;
   publicMediaBaseUrl?: string;
+  // KStorage integration
+  kstoragePath?: string;
+  // Pack management
+  packsDir?: string;
+  // Platform credentials
   instagramAccessToken?: string;
   instagramBusinessAccountId?: string;
   instagramApiBaseUrl: string;
   tiktokAccessToken?: string;
   tiktokCreatorId?: string;
   tiktokApiBaseUrl: string;
+  facebookAppId?: string;
+  facebookAppSecret?: string;
+  facebookAccessToken?: string;
+  youtubeClientId?: string;
+  youtubeClientSecret?: string;
+  youtubeRefreshToken?: string;
+  linkedinClientId?: string;
+  linkedinClientSecret?: string;
+  linkedinAccessToken?: string;
+  xApiKey?: string;
+  xApiSecret?: string;
+  xAccessToken?: string;
+  xAccessSecret?: string;
+  telegramBotToken?: string;
+  telegramChannelId?: string;
 }
 
 export type GoogleMediaConfigInput = Partial<GoogleMediaConfig>;
@@ -56,18 +76,56 @@ export function loadConfig(overrides: GoogleMediaConfigInput = {}): GoogleMediaC
   const tiktokApiBaseUrl =
     overrides.tiktokApiBaseUrl ?? process.env.TIKTOK_API_BASE_URL ?? 'https://open.tiktokapis.com/v2';
 
+  // Add new platform configs
+  const facebookAppId = overrides.facebookAppId ?? process.env.FB_APP_ID ?? undefined;
+  const facebookAppSecret = overrides.facebookAppSecret ?? process.env.FB_APP_SECRET ?? undefined;
+  const facebookAccessToken = overrides.facebookAccessToken ?? process.env.FB_ACCESS_TOKEN ?? undefined;
+  const youtubeClientId = overrides.youtubeClientId ?? process.env.YT_CLIENT_ID ?? undefined;
+  const youtubeClientSecret = overrides.youtubeClientSecret ?? process.env.YT_CLIENT_SECRET ?? undefined;
+  const youtubeRefreshToken = overrides.youtubeRefreshToken ?? process.env.YT_REFRESH_TOKEN ?? undefined;
+  const linkedinClientId = overrides.linkedinClientId ?? process.env.LI_CLIENT_ID ?? undefined;
+  const linkedinClientSecret = overrides.linkedinClientSecret ?? process.env.LI_CLIENT_SECRET ?? undefined;
+  const linkedinAccessToken = overrides.linkedinAccessToken ?? process.env.LI_ACCESS_TOKEN ?? undefined;
+  const xApiKey = overrides.xApiKey ?? process.env.X_API_KEY ?? undefined;
+  const xApiSecret = overrides.xApiSecret ?? process.env.X_API_SECRET ?? undefined;
+  const xAccessToken = overrides.xAccessToken ?? process.env.X_ACCESS_TOKEN ?? undefined;
+  const xAccessSecret = overrides.xAccessSecret ?? process.env.X_ACCESS_SECRET ?? undefined;
+  const telegramBotToken = overrides.telegramBotToken ?? process.env.TG_BOT_TOKEN ?? undefined;
+  const telegramChannelId = overrides.telegramChannelId ?? process.env.TG_CHANNEL_ID ?? undefined;
+  
+  // KStorage + Pack paths
+  const kstoragePath = overrides.kstoragePath ?? process.env.KSTORAGE_PATH ?? 'kstorage';
+  const packsDir = overrides.packsDir ?? process.env.SARAWAN_PACKS_DIR ?? path.join(defaultOutputDir, 'packs');
+
   return {
     geminiApiKey,
     defaultOutputDir,
     dryRun,
     killSwitch,
     publicMediaBaseUrl,
+    kstoragePath,
+    packsDir,
     instagramAccessToken,
     instagramBusinessAccountId,
     instagramApiBaseUrl,
     tiktokAccessToken,
     tiktokCreatorId,
     tiktokApiBaseUrl,
+    facebookAppId,
+    facebookAppSecret,
+    facebookAccessToken,
+    youtubeClientId,
+    youtubeClientSecret,
+    youtubeRefreshToken,
+    linkedinClientId,
+    linkedinClientSecret,
+    linkedinAccessToken,
+    xApiKey,
+    xApiSecret,
+    xAccessToken,
+    xAccessSecret,
+    telegramBotToken,
+    telegramChannelId
   };
 }
 
@@ -94,6 +152,14 @@ export function requireInstagramPublishConfig(config: GoogleMediaConfig): {
   businessAccountId: string;
   apiBaseUrl: string;
 } {
+  if (config.dryRun) {
+    return {
+      accessToken: 'dummy_instagram_token',
+      businessAccountId: 'dummy_instagram_id',
+      apiBaseUrl: config.instagramApiBaseUrl,
+    };
+  }
+
   const accessToken = config.instagramAccessToken?.trim();
   const businessAccountId = config.instagramBusinessAccountId?.trim();
 
@@ -115,6 +181,14 @@ export function requireTikTokPublishConfig(config: GoogleMediaConfig): {
   creatorId: string;
   apiBaseUrl: string;
 } {
+  if (config.dryRun) {
+    return {
+      accessToken: 'dummy_tiktok_token',
+      creatorId: 'dummy_tiktok_id',
+      apiBaseUrl: config.tiktokApiBaseUrl,
+    };
+  }
+
   const accessToken = config.tiktokAccessToken?.trim();
   const creatorId = config.tiktokCreatorId?.trim();
 

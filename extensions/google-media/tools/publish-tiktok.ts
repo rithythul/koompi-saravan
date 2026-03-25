@@ -4,12 +4,13 @@ import { Type } from '@sinclair/typebox';
 
 import { assertAutomationEnabled, loadConfig, type GoogleMediaConfigInput } from '../lib/config.js';
 import { assertCanPublish } from '../lib/idempotency.js';
-import { publishTikTokVideo } from '../lib/platforms/tiktok-client.js';
+import { getPlatformClient } from '../lib/platforms/platform-factory.js';
 import {
   getLatestRenderedVideoForRun,
   getPublishedPostByRunAndPlatform,
   getRunById,
   initStore,
+  logAudit,
   savePublishedPost,
   updateRunStatus,
 } from '../lib/store.js';
@@ -81,6 +82,7 @@ export function createPublishTikTokTool(configOverrides: GoogleMediaConfigInput 
           );
         }
 
+        const client = getPlatformClient('tiktok', config);
         const publishResponse = config.dryRun
           ? {
               platformPostId: `dryrun-tiktok-${params.runId}`,
@@ -88,7 +90,7 @@ export function createPublishTikTokTool(configOverrides: GoogleMediaConfigInput 
                 simulated: true,
               },
             }
-          : await publishTikTokVideo(config, {
+          : await client.publish({
               caption,
               videoUrl: videoUrl!,
             });
@@ -102,12 +104,20 @@ export function createPublishTikTokTool(configOverrides: GoogleMediaConfigInput 
           videoPath: renderedVideo.filePath,
           videoUrl,
           platformPostId: publishResponse.platformPostId,
-          permalink: undefined,
+          permalink: publishResponse.permalink,
           metadata: {
             ...(publishResponse.metadata ?? {}),
             hashtags: params.hashtags ?? [],
             dryRun: config.dryRun,
           },
+        });
+
+        logAudit(store, {
+          toolName: 'publish_tiktok',
+          action: 'publish',
+          entityType: 'published_post',
+          entityId: publication.id,
+          details: { runId: params.runId, platform: 'tiktok', dryRun: config.dryRun },
         });
 
         if (!config.dryRun) {

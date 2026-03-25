@@ -1,4 +1,5 @@
 import type { GoogleMediaConfig } from '../config.js';
+import fetchWithRetry from '../fetch-with-retry.js';
 import { requireTikTokPublishConfig } from '../config.js';
 
 export interface TikTokAnalyticsInput {
@@ -35,7 +36,10 @@ export async function publishTikTokVideo(
 ): Promise<TikTokPublishResponse> {
   const tikTok = requireTikTokPublishConfig(config);
 
-  const publishResponse = await fetch(`${tikTok.apiBaseUrl}/post/publish/video/init/`, {
+  const sanitizedCaption = sanitizeCaption(input.caption);
+  const validatedVideoUrl = validateVideoUrl(input.videoUrl);
+
+  const publishResponse = await fetchWithRetry(`${tikTok.apiBaseUrl}/post/publish/video/init/`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${tikTok.accessToken}`,
@@ -43,19 +47,20 @@ export async function publishTikTokVideo(
     },
     body: JSON.stringify({
       post_info: {
-        title: input.caption.slice(0, 150),
+        title: sanitizedCaption.slice(0, 150), // TikTok title limit is 150 chars
       },
       source_info: {
         source: 'PULL_FROM_URL',
-        video_url: input.videoUrl,
+        video_url: validatedVideoUrl,
       },
       creator_id: tikTok.creatorId,
     }),
   });
 
   if (!publishResponse.ok) {
+    const errorText = await publishResponse.text();
     throw new Error(
-      `TikTok publish failed: ${publishResponse.status} ${await publishResponse.text()}`,
+      redactTokens(`TikTok publish failed: ${publishResponse.status} ${errorText}`),
     );
   }
 
@@ -79,6 +84,47 @@ export async function publishTikTokVideo(
       creatorId: tikTok.creatorId,
     },
   };
+}
+
+function sanitizeCaption(caption: string): string {
+  // Strip HTML tags
+  let sanitized = caption.replace(/<[^>]*>?/gm, '');
+  // Limit length (e.g., TikTok captions are max 2200 characters if no video)
+  // A more robust solution would consider platform-specific limits from config
+  sanitized = sanitized.substring(0, 2200);
+  // Escape special characters (basic example, can be expanded)
+  sanitized = sanitized.replace(/["&'<>\\/]/g, function (s) {
+    switch (s) {
+      case '"': return '&quot;';
+      case '&': return '&amp;';
+      case '\'': return '&#39;';
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '/': return '&#x2F;';
+      default: return s;
+    }
+  });
+  return sanitized;
+}
+
+function validateVideoUrl(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    if (urlObj.protocol !== 'https:') {
+      throw new Error('Video URL must be HTTPS.');
+    }
+    // Basic domain validation - can be expanded if needed
+    if (!urlObj.hostname.includes('.')) {
+      throw new Error('Video URL must have a valid domain.');
+    }
+    return url;
+  } catch (error: any) {
+    throw new Error(`Invalid video URL: ${error.message}`);
+  }
+}
+
+function redactTokens(message: string): string {
+  return message.replace(/(Bearer\s[a-zA-Z0-9-_.]+)|(access_token=[a-zA-Z0-9-_.]+)/g, '[REDACTED_TOKEN]');
 }
 
 function numberFromUnknown(value: unknown): number {
@@ -146,7 +192,7 @@ export async function fetchTikTokVideoMetrics(
     ].join(','),
   );
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url.toString(), {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${tikTok.accessToken}`,
@@ -162,7 +208,10 @@ export async function fetchTikTokVideoMetrics(
   });
 
   if (!response.ok) {
-    throw new Error(`TikTok analytics failed: ${response.status} ${await response.text()}`);
+    const errorText = await response.text();
+    throw new Error(
+      redactTokens(`TikTok analytics failed: ${response.status} ${errorText}`),
+    );
   }
 
   const payload = (await response.json()) as Record<string, unknown>;

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"^\\\\./|^[^/]*$|\\\\.env|README|\\\\.md$|Dockerfile|\\\\.yml|\\\\.yaml|\\\\.config\")"
+    ]
+  }
+}

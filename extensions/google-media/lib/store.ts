@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { randomUUID } from 'crypto';
 
-import { Database } from './db.js';
+import { Database, type DatabaseConnection } from './db.js';
 
 import type { GoogleMediaConfig } from './config.js';
 import { getOutputRoot } from './output-paths.js';
@@ -22,7 +23,7 @@ import type {
 } from './types.js';
 
 export interface GoogleMediaStore {
-  db: Database;
+  db: DatabaseConnection;
   dbPath: string;
 }
 
@@ -968,6 +969,32 @@ export function savePublishedPost(
     );
 
   return getPublishedPostByRunAndPlatform(store, publication.runId, publication.platform)!;
+}
+
+export function logAudit(
+  store: GoogleMediaStore,
+  input: {
+    toolName: string;
+    action: string;
+    entityType: string;
+    entityId: string;
+    details: Record<string, unknown>;
+  }
+) {
+  store.db
+    .prepare(
+      `INSERT INTO audit_log (id, timestamp, tool_name, action, entity_type, entity_id, details_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      randomUUID(),
+      new Date().toISOString(),
+      input.toolName,
+      input.action,
+      input.entityType,
+      input.entityId,
+      serializeMetadata(input.details)
+    );
 }
 
 export function savePlannedPost(

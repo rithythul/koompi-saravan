@@ -10,6 +10,7 @@ import { analyzePatternsTool, createAnalyzePatternsTool } from './tools/analyze-
 import { buildDailyPlanTool, createBuildDailyPlanTool } from './tools/build-daily-plan.js';
 import { createExecutePlannedPostTool, executePlannedPostTool } from './tools/execute-planned-post.js';
 import { createGenerateScheduleTool, generateScheduleTool } from './tools/generate-schedule.js';
+import { createConfigValidatorTool, configValidatorTool } from './tools/config-validator.js';
 import { createLogConversionTool, logConversionTool } from './tools/log-conversion.js';
 import { createLogPostTool, logPostTool } from './tools/log-post.js';
 import { createNanoBananaTool, nanoBananaTool } from './tools/nano-banana.js';
@@ -20,6 +21,32 @@ import { createPublishTikTokTool, publishTikTokTool } from './tools/publish-tikt
 import { createRenderHookRevealTool, renderHookRevealTool } from './tools/render-hook-reveal.js';
 import { createRunDailyPlanTool, runDailyPlanTool } from './tools/run-daily-plan.js';
 import { createUpdateHourPerformanceTool, updateHourPerformanceTool } from './tools/update-hour-performance.js';
+import {
+  createUploadMediaTool,
+  createListMediaTool,
+  createGetSignedUrlTool,
+  createDeleteMediaTool,
+  uploadMediaTool,
+  listMediaTool,
+  getSignedUrlTool,
+  deleteMediaTool,
+} from './tools/media-storage.js';
+import {
+  createCreatePackTool,
+  createListPacksTool,
+  createGetPackTool,
+  createUpdatePackTool,
+  createDeletePackTool,
+  createAddPackImageTool,
+  createDeletePackImageTool,
+  createPackTool,
+  listPacksTool,
+  getPackTool,
+  updatePackTool,
+  deletePackTool,
+  addPackImageTool,
+  deletePackImageTool,
+} from './tools/pack-manager.js';
 
 export type OpenClawTool = {
   name: string;
@@ -38,6 +65,7 @@ export type OpenClawPluginContext = {
 
 export function createRegisteredTools(configOverrides: GoogleMediaConfigInput = {}): OpenClawTool[] {
   return [
+    createConfigValidatorTool(),
     createNanoBananaTool(configOverrides),
     createRenderHookRevealTool(configOverrides),
     createPublishInstagramTool(configOverrides),
@@ -52,6 +80,19 @@ export function createRegisteredTools(configOverrides: GoogleMediaConfigInput = 
     createExecutePlannedPostTool(configOverrides),
     createRunDailyPlanTool(configOverrides),
     createUpdateHourPerformanceTool(configOverrides),
+    // Media Storage Tools
+    createUploadMediaTool(configOverrides),
+    createListMediaTool(configOverrides),
+    createGetSignedUrlTool(configOverrides),
+    createDeleteMediaTool(configOverrides),
+    // Pack Management Tools
+    createCreatePackTool(configOverrides),
+    createListPacksTool(configOverrides),
+    createGetPackTool(configOverrides),
+    createUpdatePackTool(configOverrides),
+    createDeletePackTool(configOverrides),
+    createAddPackImageTool(configOverrides),
+    createDeletePackImageTool(configOverrides),
   ];
 }
 
@@ -70,6 +111,7 @@ export default function registerGoogleMediaPlugin(
 
 // Export tools for direct use
 export const tools = {
+  configValidator: configValidatorTool,
   nanoBanana: nanoBananaTool,
   renderHookReveal: renderHookRevealTool,
   publishInstagram: publishInstagramTool,
@@ -84,4 +126,17 @@ export const tools = {
   executePlannedPost: executePlannedPostTool,
   runDailyPlan: runDailyPlanTool,
   updateHourPerformance: updateHourPerformanceTool,
+  // Media Storage
+  uploadMedia: uploadMediaTool,
+  listMedia: listMediaTool,
+  getSignedUrl: getSignedUrlTool,
+  deleteMedia: deleteMediaTool,
+  // Pack Management
+  createPack: createPackTool,
+  listPacks: listPacksTool,
+  getPack: getPackTool,
+  updatePack: updatePackTool,
+  deletePack: deletePackTool,
+  addPackImage: addPackImageTool,
+  deletePackImage: deletePackImageTool,
 };

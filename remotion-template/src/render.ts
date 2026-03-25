@@ -10,6 +10,7 @@ import { renderMedia, selectComposition } from "@remotion/renderer";
 import { fileURLToPath } from "url";
 import path from "path";
 import fs from "fs/promises";
+import crypto from "crypto";
 
 export const SUPPORTED_COMPOSITIONS = ["HookReveal"] as const;
 
@@ -36,6 +37,19 @@ export function getRemotionProjectRoot(): string {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 }
 
+async function computeSourceHash(projectRoot: string): Promise<string> {
+    const files = await fs.readdir(projectRoot, { recursive: true });
+    const hashes = await Promise.all(
+        files
+            .filter(f => f.endsWith('.tsx') || f.endsWith('.ts') || f.endsWith('.css'))
+            .map(async f => {
+                const content = await fs.readFile(path.join(projectRoot, f));
+                return crypto.createHash('sha256').update(content).digest('hex');
+            })
+    );
+    return crypto.createHash('sha256').update(hashes.join('')).digest('hex');
+}
+
 export function assertSupportedCompositionId(
   compositionId: string,
 ): asserts compositionId is SupportedCompositionId {
@@ -54,12 +68,23 @@ export async function renderVideo(options: RenderOptions): Promise<RenderResult>
     assertSupportedCompositionId(options.compositionId);
     const projectRoot = getRemotionProjectRoot();
     
-    // Bundle the Remotion project
-    console.log(`Bundling Remotion project...`);
-    const bundled = await bundle({
-      entryPoint: path.join(projectRoot, "root.tsx"),
-      outDir: path.join(projectRoot, ".bundle"),
-    });
+    // Hash source files to determine if we need to rebundle
+    const sourceHash = await computeSourceHash(projectRoot);
+    const hashFile = path.join(projectRoot, '.bundle-hash');
+    const existingHash = await fs.readFile(hashFile, 'utf8').catch(() => '');
+
+    let bundled;
+    if (sourceHash !== existingHash) {
+        console.log(`Source changed (hash: ${sourceHash}). Bundling Remotion project...`);
+        bundled = await bundle({
+          entryPoint: path.join(projectRoot, "root.tsx"),
+          outDir: path.join(projectRoot, ".bundle"),
+        });
+        await fs.writeFile(hashFile, sourceHash);
+    } else {
+        console.log('Source unchanged. Using existing bundle.');
+        bundled = path.join(projectRoot, '.bundle', 'index.js');
+    }
 
     // Select the composition
     const composition = await selectComposition({

@@ -4,12 +4,13 @@ import { Type } from '@sinclair/typebox';
 
 import { assertAutomationEnabled, loadConfig, type GoogleMediaConfigInput } from '../lib/config.js';
 import { assertCanPublish } from '../lib/idempotency.js';
-import { publishInstagramVideo } from '../lib/platforms/instagram-client.js';
+import { getPlatformClient } from '../lib/platforms/platform-factory.js';
 import {
   getLatestRenderedVideoForRun,
   getPublishedPostByRunAndPlatform,
   getRunById,
   initStore,
+  logAudit,
   savePublishedPost,
   updateRunStatus,
 } from '../lib/store.js';
@@ -81,6 +82,7 @@ export function createPublishInstagramTool(configOverrides: GoogleMediaConfigInp
           );
         }
 
+        const client = getPlatformClient('instagram', config);
         const publishResponse = config.dryRun
           ? {
               platformPostId: `dryrun-instagram-${params.runId}`,
@@ -89,7 +91,7 @@ export function createPublishInstagramTool(configOverrides: GoogleMediaConfigInp
                 simulated: true,
               },
             }
-          : await publishInstagramVideo(config, {
+          : await client.publish({
               caption,
               videoUrl: videoUrl!,
             });
@@ -109,6 +111,14 @@ export function createPublishInstagramTool(configOverrides: GoogleMediaConfigInp
             hashtags: params.hashtags ?? [],
             dryRun: config.dryRun,
           },
+        });
+
+        logAudit(store, {
+          toolName: 'publish_instagram',
+          action: 'publish',
+          entityType: 'published_post',
+          entityId: publication.id,
+          details: { runId: params.runId, platform: 'instagram', dryRun: config.dryRun },
         });
 
         if (!config.dryRun) {

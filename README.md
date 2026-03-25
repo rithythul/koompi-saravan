@@ -35,6 +35,9 @@ saravan-media/
 | analytics tools | ✅ Built | Post logging, analytics pull, pattern analysis, schedule generation |
 | conversion loop | ✅ Built | Conversion logging, next-post planning, daily plan generation |
 | autonomous execution loop | ✅ Built | Execute planned posts end-to-end with dry-run-safe fallbacks |
+| **media storage** | ✅ Built | Upload, list, delete via KStorage (S3-compatible) |
+| **pack management** | ✅ Built | Create, list, update, delete image packs with AI metadata |
+| template system | 🔲 Next | Reusable slideshow structures |
 | Veo tool | 🔲 Todo | Waiting for API access |
 | Lyria tool | 🔲 Todo | Music generation |
 | TTS tool | 🔲 Todo | Voiceover generation |

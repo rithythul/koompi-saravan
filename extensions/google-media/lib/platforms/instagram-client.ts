@@ -1,4 +1,5 @@
 import type { GoogleMediaConfig } from '../config.js';
+import fetchWithRetry from '../fetch-with-retry.js';
 import { requireInstagramPublishConfig } from '../config.js';
 
 export interface InstagramAnalyticsInput {
@@ -36,7 +37,10 @@ export async function publishInstagramVideo(
 ): Promise<InstagramPublishResponse> {
   const instagram = requireInstagramPublishConfig(config);
 
-  const createContainerResponse = await fetch(
+  const sanitizedCaption = sanitizeCaption(input.caption);
+  const validatedVideoUrl = validateVideoUrl(input.videoUrl);
+
+  const createContainerResponse = await fetchWithRetry(
     `${instagram.apiBaseUrl}/${instagram.businessAccountId}/media`,
     {
       method: 'POST',
@@ -45,16 +49,17 @@ export async function publishInstagramVideo(
       },
       body: JSON.stringify({
         media_type: 'REELS',
-        video_url: input.videoUrl,
-        caption: input.caption,
+        video_url: validatedVideoUrl,
+        caption: sanitizedCaption,
         access_token: instagram.accessToken,
       }),
     },
   );
 
   if (!createContainerResponse.ok) {
+    const errorText = await createContainerResponse.text();
     throw new Error(
-      `Instagram container creation failed: ${createContainerResponse.status} ${await createContainerResponse.text()}`,
+      redactTokens(`Instagram container creation failed: ${createContainerResponse.status} ${errorText}`),
     );
   }
 
@@ -63,7 +68,7 @@ export async function publishInstagramVideo(
     throw new Error('Instagram container creation did not return a container ID.');
   }
 
-  const publishResponse = await fetch(
+  const publishResponse = await fetchWithRetry(
     `${instagram.apiBaseUrl}/${instagram.businessAccountId}/media_publish`,
     {
       method: 'POST',
@@ -78,8 +83,9 @@ export async function publishInstagramVideo(
   );
 
   if (!publishResponse.ok) {
+    const errorText = await publishResponse.text();
     throw new Error(
-      `Instagram publish failed: ${publishResponse.status} ${await publishResponse.text()}`,
+      redactTokens(`Instagram publish failed: ${publishResponse.status} ${errorText}`),
     );
   }
 
@@ -89,13 +95,54 @@ export async function publishInstagramVideo(
   }
 
   return {
-    platformPostId: publishData.id,
+    platformPostId: publishData.id || '',
     creationId: createContainerData.id,
     permalink: publishData.permalink,
     metadata: {
       creationId: createContainerData.id,
     },
   };
+}
+
+function sanitizeCaption(caption: string): string {
+  // Strip HTML tags
+  let sanitized = caption.replace(/<[^>]*>?/gm, '');
+  // Limit length (e.g., Instagram captions are max 2200 characters)
+  // A more robust solution would consider platform-specific limits from config
+  sanitized = sanitized.substring(0, 2200);
+  // Escape special characters (basic example, can be expanded)
+  sanitized = sanitized.replace(/["&'<>\\/]/g, function (s) {
+    switch (s) {
+      case '"': return '&quot;';
+      case '&': return '&amp;';
+      case '\'': return '&#39;';
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '/': return '&#x2F;';
+      default: return s;
+    }
+  });
+  return sanitized;
+}
+
+function validateVideoUrl(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    if (urlObj.protocol !== 'https:') {
+      throw new Error('Video URL must be HTTPS.');
+    }
+    // Basic domain validation - can be expanded if needed
+    if (!urlObj.hostname.includes('.')) {
+      throw new Error('Video URL must have a valid domain.');
+    }
+    return url;
+  } catch (error: any) {
+    throw new Error(`Invalid video URL: ${error.message}`);
+  }
+}
+
+function redactTokens(message: string): string {
+  return message.replace(/(Bearer\s[a-zA-Z0-9-_.]+)|(access_token=[a-zA-Z0-9-_.]+)/g, '[REDACTED_TOKEN]');
 }
 
 function normalizeNumber(value: unknown): number {
@@ -152,7 +199,7 @@ export async function fetchInstagramMediaMetrics(
   url.searchParams.set('metric', metrics);
   url.searchParams.set('access_token', instagram.accessToken);
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url.toString(), {
     method: 'GET',
     headers: {
       Accept: 'application/json',
@@ -160,8 +207,9 @@ export async function fetchInstagramMediaMetrics(
   });
 
   if (!response.ok) {
+    const errorText = await response.text();
     throw new Error(
-      `Instagram analytics failed: ${response.status} ${await response.text()}`,
+      redactTokens(`Instagram analytics failed: ${response.status} ${errorText}`),
     );
   }
 
