@@ -3,8 +3,8 @@ import { type SocialPlatformClient } from './types.js';
 import { publishInstagramVideo, fetchInstagramMediaMetrics } from './instagram-client.js';
 import { publishTikTokVideo, fetchTikTokVideoMetrics } from './tiktok-client.js';
 import { publishFacebookVideo, fetchFacebookMediaMetrics } from './facebook-client.js';
-import { YouTubeClient } from './youtube-client.js';
-import { LinkedInClient } from './linkedin-client.js';
+import { publishYouTubeVideo, fetchYouTubeVideoMetrics } from './youtube-client.js';
+import { publishLinkedInVideo, fetchLinkedInPostMetrics } from './linkedin-client.js';
 import { TelegramClient } from './telegram-client.js';
 import { XClient } from './x-client.js';
 import { RateLimiter } from '../rate-limiter.js';
@@ -44,8 +44,20 @@ export function getPlatformClient(platform: string, config: GoogleMediaConfig): 
                 fetchMetrics: (postId) => fetchFacebookMediaMetrics(config, { platformPostId: postId }),
             };
             break;
-        case 'youtube': baseClient = new YouTubeClient(config); break;
-        case 'linkedin': baseClient = new LinkedInClient(config); break;
+        case 'youtube':
+            baseClient = {
+                platform: 'youtube',
+                publish: (input) => publishYouTubeVideo(config, input),
+                fetchMetrics: (postId) => fetchYouTubeVideoMetrics(config, { platformPostId: postId }),
+            };
+            break;
+        case 'linkedin':
+            baseClient = {
+                platform: 'linkedin',
+                publish: (input) => publishLinkedInVideo(config, input),
+                fetchMetrics: (postId) => fetchLinkedInPostMetrics(config, { platformPostId: postId }),
+            };
+            break;
         case 'telegram': baseClient = new TelegramClient(config); break;
         case 'x': baseClient = new XClient(config); break;
         default:

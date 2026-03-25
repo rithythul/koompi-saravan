@@ -47,6 +47,72 @@ import {
   addPackImageTool,
   deletePackImageTool,
 } from './tools/pack-manager.js';
+import {
+  createCreateTemplateTool,
+  createListTemplatesTool,
+  createGetTemplateTool,
+  createUpdateTemplateTool,
+  createDeleteTemplateTool,
+  createCreateTemplateFromSlideshowTool,
+  createTemplateTool,
+  listTemplatesTool,
+  getTemplateTool,
+  updateTemplateTool,
+  deleteTemplateTool,
+  createTemplateFromSlideshowTool,
+} from './tools/template-manager.js';
+import {
+  createCreateFolderTool,
+  createListFoldersTool,
+  createGetFolderTool,
+  createMoveFolderTool,
+  createDeleteFolderTool,
+  createFolderAncestorsTool,
+  createFolderItemsTool,
+  createFolderItemsAddTool,
+  createFolderItemsRemoveTool,
+  createFolderTool,
+  listFoldersTool,
+  getFolderTool,
+  moveFolderTool,
+  deleteFolderTool,
+  folderAncestorsTool,
+  folderItemsTool,
+  folderItemsAddTool,
+  folderItemsRemoveTool,
+} from './tools/folder-manager.js';
+import {
+  createGenerateSlideshowTool,
+  createRenderSlideshowTool,
+  createUpdateSlideshowTool,
+  generateSlideshowTool,
+  renderSlideshowTool,
+  updateSlideshowTool,
+} from './tools/slideshow-generator.js';
+import {
+  createTrendBriefTool,
+  trendBriefTool,
+} from './tools/trend-brief.js';
+import {
+  createAnalyticsSummaryTool,
+  createAnalyticsPostsTool,
+  createCreateAnalyticsTargetTool,
+  createRefreshAnalyticsTool,
+  analyticsSummaryTool,
+  analyticsPostsTool,
+  createAnalyticsTargetTool,
+  refreshAnalyticsTool,
+} from './tools/analytics-aggregator.js';
+import {
+  createScheduleJobTool,
+  createListJobsTool,
+  createCancelJobTool,
+  createGetJobTool,
+  scheduleJobTool,
+  listJobsTool,
+  cancelJobTool,
+  getJobTool,
+} from './tools/scheduler.js';
 
 export type OpenClawTool = {
   name: string;
@@ -93,6 +159,39 @@ export function createRegisteredTools(configOverrides: GoogleMediaConfigInput = 
     createDeletePackTool(configOverrides),
     createAddPackImageTool(configOverrides),
     createDeletePackImageTool(configOverrides),
+    // Template Management Tools
+    createCreateTemplateTool(configOverrides),
+    createListTemplatesTool(configOverrides),
+    createGetTemplateTool(configOverrides),
+    createUpdateTemplateTool(configOverrides),
+    createDeleteTemplateTool(configOverrides),
+    createCreateTemplateFromSlideshowTool(configOverrides),
+    // Folder Management Tools
+    createCreateFolderTool(configOverrides),
+    createListFoldersTool(configOverrides),
+    createGetFolderTool(configOverrides),
+    createMoveFolderTool(configOverrides),
+    createDeleteFolderTool(configOverrides),
+    createFolderAncestorsTool(configOverrides),
+    createFolderItemsTool(configOverrides),
+    createFolderItemsAddTool(configOverrides),
+    createFolderItemsRemoveTool(configOverrides),
+    // Slideshow Generation
+    createGenerateSlideshowTool(configOverrides),
+    createRenderSlideshowTool(configOverrides),
+    createUpdateSlideshowTool(configOverrides),
+    // Trend Research
+    createTrendBriefTool(configOverrides),
+    // Analytics Aggregator
+    createAnalyticsSummaryTool(configOverrides),
+    createAnalyticsPostsTool(configOverrides),
+    createCreateAnalyticsTargetTool(configOverrides),
+    createRefreshAnalyticsTool(configOverrides),
+    // Scheduler
+    createScheduleJobTool(configOverrides),
+    createListJobsTool(configOverrides),
+    createCancelJobTool(configOverrides),
+    createGetJobTool(configOverrides),
   ];
 }
 
@@ -139,4 +238,37 @@ export const tools = {
   deletePack: deletePackTool,
   addPackImage: addPackImageTool,
   deletePackImage: deletePackImageTool,
+  // Template Management
+  createTemplate: createTemplateTool,
+  listTemplates: listTemplatesTool,
+  getTemplate: getTemplateTool,
+  updateTemplate: updateTemplateTool,
+  deleteTemplate: deleteTemplateTool,
+  createTemplateFromSlideshow: createTemplateFromSlideshowTool,
+  // Folder Management
+  createFolder: createFolderTool,
+  listFolders: listFoldersTool,
+  getFolder: getFolderTool,
+  moveFolder: moveFolderTool,
+  deleteFolder: deleteFolderTool,
+  folderAncestors: folderAncestorsTool,
+  folderItems: folderItemsTool,
+  folderItemsAdd: folderItemsAddTool,
+  folderItemsRemove: folderItemsRemoveTool,
+  // Slideshow Generation
+  generateSlideshow: generateSlideshowTool,
+  renderSlideshow: renderSlideshowTool,
+  updateSlideshow: updateSlideshowTool,
+  // Trend Research
+  trendBrief: trendBriefTool,
+  // Analytics Aggregator
+  analyticsSummary: analyticsSummaryTool,
+  analyticsPosts: analyticsPostsTool,
+  createAnalyticsTarget: createAnalyticsTargetTool,
+  refreshAnalytics: refreshAnalyticsTool,
+  // Scheduler
+  scheduleJob: scheduleJobTool,
+  listJobs: listJobsTool,
+  cancelJob: cancelJobTool,
+  getJob: getJobTool,
 };

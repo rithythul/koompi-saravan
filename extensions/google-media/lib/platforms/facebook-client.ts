@@ -1,74 +1,58 @@
-import { type GoogleMediaConfig } from '../config.js';
-import fetchWithRetry from '../fetch-with-retry.js';
-import { logAudit } from '../store.js';
+/**
+ * Facebook Platform Client
+ *
+ * Handles Facebook Reels and Feed publishing via Facebook Graph API
+ */
 
-export interface FacebookAnalyticsInput {
-  platformPostId: string;
-}
+import { GoogleMediaConfig } from '../config.js';
 
-export interface FacebookAnalyticsResponse {
-  views: number;
-  likes: number;
-  comments: number;
-  shares: number;
-  saves: number;
-  reach: number;
-  impressions: number;
-  metadata?: Record<string, unknown>;
-}
+export type FacebookConfig = {
+  appId?: string;
+  appSecret?: string;
+  accessToken?: string;
+  pageId?: string;
+  apiBaseUrl?: string;
+};
 
-export interface FacebookPublishInput {
-  caption: string;
-  videoUrl: string;
-}
-
-export interface FacebookPublishResponse {
-  platformPostId: string;
-  permalink?: string;
-  metadata?: Record<string, unknown>;
-}
-
-// Meta Graph API helper
-async function callMetaGraphApi(config: GoogleMediaConfig, endpoint: string, method: 'GET' | 'POST', body?: unknown) {
-    const baseUrl = config.instagramApiBaseUrl; // Reuse base URL as it's the same for Meta Graph
-    const accessToken = config.facebookAccessToken;
-    
-    if (!accessToken) throw new Error('Facebook access token missing');
-
-    const response = await fetchWithRetry(`${baseUrl}/${endpoint}`, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: body ? JSON.stringify({ ...body, access_token: accessToken }) : undefined,
-        // Append token as query param if GET
-        ...(method === 'GET' ? { /* append logic */ } : {})
-    });
-    
-    if (!response.ok) {
-        throw new Error(`Meta Graph API error: ${response.status} ${await response.text()}`);
-    }
-    return response.json();
-}
-
+/**
+ * Publish a video to Facebook
+ */
 export async function publishFacebookVideo(
   config: GoogleMediaConfig,
-  input: FacebookPublishInput,
-): Promise<FacebookPublishResponse> {
-  const result = await callMetaGraphApi(config, 'me/videos', 'POST', {
-    file_url: input.videoUrl,
-    description: input.caption,
-  });
+  input: { caption: string; videoUrl: string },
+): Promise<{ platformPostId: string; permalink?: string; metadata?: Record<string, unknown> }> {
+  if (!config.facebookAccessToken) {
+    throw new Error('Facebook access token not configured');
+  }
 
+  if (!config.facebookAppId) {
+    throw new Error('Facebook app ID not configured');
+  }
+
+  // TODO: Implement Facebook video upload
+  throw new Error('Facebook publishing not yet implemented');
+}
+
+/**
+ * Fetch metrics for a Facebook post
+ */
+export async function fetchFacebookMediaMetrics(
+  config: GoogleMediaConfig,
+  params: { platformPostId: string },
+): Promise<{ views: number; likes: number; comments: number; shares: number; saves: number; reach: number; impressions: number }> {
+  if (!config.facebookAccessToken) {
+    throw new Error('Facebook access token not configured');
+  }
+
+  // TODO: Implement Facebook metrics fetch
   return {
-    platformPostId: result.id,
-    metadata: { source: 'facebook-api' },
+    views: 0,
+    likes: 0,
+    comments: 0,
+    shares: 0,
+    saves: 0,
+    reach: 0,
+    impressions: 0,
   };
 }
 
-export async function fetchFacebookMediaMetrics(
-  config: GoogleMediaConfig,
-  input: FacebookAnalyticsInput,
-): Promise<FacebookAnalyticsResponse> {
-  const result = await callMetaGraphApi(config, `${input.platformPostId}/insights`, 'GET');
-  // Logic to parse metrics from Graph API response
-  return { views: 0, likes: 0, comments: 0, shares: 0, saves: 0, reach: 0, impressions: 0 };
-}
