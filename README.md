@@ -37,10 +37,20 @@ saravan-media/
 | autonomous execution loop | ✅ Built | Execute planned posts end-to-end with dry-run-safe fallbacks |
 | **media storage** | ✅ Built | Upload, list, delete via KStorage (S3-compatible) |
 | **pack management** | ✅ Built | Create, list, update, delete image packs with AI metadata |
-| template system | 🔲 Next | Reusable slideshow structures |
+| **template system** | ✅ Built | Reusable slideshow structures |
+| **folder organization** | ✅ Built | Nested folders for media/slideshows |
+| **slideshow generator** | ✅ Built | Multi-template with text styling and filters |
+| **trend brief** | ✅ Built | Niche research (hashtags, sounds, creators, hooks) |
+| **analytics aggregator** | ✅ Built | Multi-platform metrics |
+| **job scheduler** | ✅ Built | Persistent queue for scheduled posts |
+| **platform clients** | ✅ Stubs | YouTube, Pinterest, LinkedIn, Facebook (need full impl) |
 | Veo tool | 🔲 Todo | Waiting for API access |
 | Lyria tool | 🔲 Todo | Music generation |
 | TTS tool | 🔲 Todo | Voiceover generation |
+| REST API | 🔲 Todo | HTTP API for all operations |
+| Web dashboard | 🔲 Todo | UI for post management |
+
+**Total Tools: 52** (up from 15)
 
 ## Quick Start
 
