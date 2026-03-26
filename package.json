@@ -1,0 +1,13 @@
+{
+  "name": "sarawan-social",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "cli": "bun run src/cli.ts"
+  },
+  "devDependencies": {
+    "bun-types": "^1.2.5",
+    "typescript": "^5.8.2"
+  }
+}
