@@ -58,6 +58,17 @@ export interface PinterestConfig extends PlatformConfig {
   boardId: string;
 }
 
+export interface TelegramConfig extends PlatformConfig {
+  botToken: string;
+  channelId: string;
+}
+
+export interface XConfig extends PlatformConfig {
+  apiKey: string;
+  apiSecret: string;
+  accessTokenSecret: string;
+}
+
 export interface SarawanConfig {
   linkedin: LinkedInConfig;
   facebook: FacebookConfig;
@@ -65,6 +76,8 @@ export interface SarawanConfig {
   tiktok: TikTokConfig;
   youtube: YouTubeConfig;
   pinterest: PinterestConfig;
+  telegram: TelegramConfig;
+  x: XConfig;
 }
 
 export const config: SarawanConfig = {
@@ -91,5 +104,16 @@ export const config: SarawanConfig = {
   pinterest: {
     accessToken: env('PINTEREST_ACCESS_TOKEN'),
     boardId: env('PINTEREST_BOARD_ID'),
+  },
+  telegram: {
+    accessToken: env('TELEGRAM_CHANNEL_BOT_TOKEN'),
+    botToken: env('TELEGRAM_CHANNEL_BOT_TOKEN'),
+    channelId: env('TELEGRAM_CHANNEL_ID'),
+  },
+  x: {
+    accessToken: env('X_ACCESS_TOKEN'),
+    apiKey: env('X_API_KEY'),
+    apiSecret: env('X_API_SECRET'),
+    accessTokenSecret: env('X_ACCESS_TOKEN_SECRET'),
   },
 };

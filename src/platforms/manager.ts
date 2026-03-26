@@ -5,6 +5,8 @@ import { InstagramClient } from './instagram/client.js';
 import { TikTokClient } from './tiktok/client.js';
 import { YouTubeClient } from './youtube/client.js';
 import { PinterestClient } from './pinterest/client.js';
+import { TelegramClient } from './telegram/client.js';
+import { XClient } from './x/client.js';
 import { config } from '../config.js';
 
 function createClient(platform: PlatformName): PlatformClient {
@@ -21,10 +23,14 @@ function createClient(platform: PlatformName): PlatformClient {
       return new YouTubeClient(config.youtube);
     case 'pinterest':
       return new PinterestClient(config.pinterest);
+    case 'telegram':
+      return new TelegramClient(config.telegram);
+    case 'x':
+      return new XClient(config.x);
   }
 }
 
-const ALL_PLATFORMS: PlatformName[] = ['linkedin', 'facebook', 'instagram', 'tiktok', 'youtube', 'pinterest'];
+const ALL_PLATFORMS: PlatformName[] = ['linkedin', 'facebook', 'instagram', 'tiktok', 'youtube', 'pinterest', 'telegram', 'x'];
 
 export async function postToAll(
   content: SocialPost,

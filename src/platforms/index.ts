@@ -27,7 +27,7 @@ export interface PlatformClient {
   getAnalytics(postId: string): Promise<AnalyticsData>;
 }
 
-export type PlatformName = 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube' | 'pinterest';
+export type PlatformName = 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube' | 'pinterest' | 'telegram' | 'x';
 
 export { LinkedInClient } from './linkedin/client.js';
 export { FacebookClient } from './facebook/client.js';
@@ -35,3 +35,5 @@ export { InstagramClient } from './instagram/client.js';
 export { TikTokClient } from './tiktok/client.js';
 export { YouTubeClient } from './youtube/client.js';
 export { PinterestClient } from './pinterest/client.js';
+export { TelegramClient } from './telegram/client.js';
+export { XClient } from './x/client.js';
