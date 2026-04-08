@@ -1,28 +1,10 @@
 import type { PlatformClient, SocialPost, PostResult, AnalyticsData, PlatformName } from './index.js';
-import { LinkedInClient } from './linkedin/client.js';
-import { FacebookClient } from './facebook/client.js';
-import { InstagramClient } from './instagram/client.js';
-import { TikTokClient } from './tiktok/client.js';
-import { YouTubeClient } from './youtube/client.js';
-import { PinterestClient } from './pinterest/client.js';
 import { TelegramClient } from './telegram/client.js';
 import { XClient } from './x/client.js';
 import { config } from '../config.js';
 
 function createClient(platform: PlatformName): PlatformClient {
   switch (platform) {
-    case 'linkedin':
-      return new LinkedInClient(config.linkedin);
-    case 'facebook':
-      return new FacebookClient(config.facebook);
-    case 'instagram':
-      return new InstagramClient(config.instagram);
-    case 'tiktok':
-      return new TikTokClient(config.tiktok);
-    case 'youtube':
-      return new YouTubeClient(config.youtube);
-    case 'pinterest':
-      return new PinterestClient(config.pinterest);
     case 'telegram':
       return new TelegramClient(config.telegram);
     case 'x':
@@ -30,7 +12,7 @@ function createClient(platform: PlatformName): PlatformClient {
   }
 }
 
-const ALL_PLATFORMS: PlatformName[] = ['linkedin', 'facebook', 'instagram', 'tiktok', 'youtube', 'pinterest', 'telegram', 'x'];
+const ALL_PLATFORMS: PlatformName[] = ['telegram', 'x'];
 
 export async function postToAll(
   content: SocialPost,

@@ -34,30 +34,6 @@ export interface PlatformConfig {
   [key: string]: string;
 }
 
-export interface LinkedInConfig extends PlatformConfig {
-  orgId: string;
-}
-
-export interface FacebookConfig extends PlatformConfig {
-  pageId: string;
-}
-
-export interface InstagramConfig extends PlatformConfig {
-  accountId: string;
-}
-
-export interface TikTokConfig extends PlatformConfig {
-  clientKey: string;
-}
-
-export interface YouTubeConfig extends PlatformConfig {
-  channelId: string;
-}
-
-export interface PinterestConfig extends PlatformConfig {
-  boardId: string;
-}
-
 export interface TelegramConfig extends PlatformConfig {
   botToken: string;
   channelId: string;
@@ -70,41 +46,11 @@ export interface XConfig extends PlatformConfig {
 }
 
 export interface SarawanConfig {
-  linkedin: LinkedInConfig;
-  facebook: FacebookConfig;
-  instagram: InstagramConfig;
-  tiktok: TikTokConfig;
-  youtube: YouTubeConfig;
-  pinterest: PinterestConfig;
   telegram: TelegramConfig;
   x: XConfig;
 }
 
 export const config: SarawanConfig = {
-  linkedin: {
-    accessToken: env('LINKEDIN_ACCESS_TOKEN'),
-    orgId: env('LINKEDIN_ORGANIZATION_ID'),
-  },
-  facebook: {
-    accessToken: env('FACEBOOK_PAGE_ACCESS_TOKEN'),
-    pageId: env('FACEBOOK_PAGE_ID'),
-  },
-  instagram: {
-    accessToken: env('INSTAGRAM_ACCESS_TOKEN'),
-    accountId: env('INSTAGRAM_BUSINESS_ACCOUNT_ID'),
-  },
-  tiktok: {
-    accessToken: env('TIKTOK_ACCESS_TOKEN'),
-    clientKey: env('TIKTOK_CLIENT_KEY'),
-  },
-  youtube: {
-    accessToken: env('YOUTUBE_ACCESS_TOKEN'),
-    channelId: env('YOUTUBE_CHANNEL_ID'),
-  },
-  pinterest: {
-    accessToken: env('PINTEREST_ACCESS_TOKEN'),
-    boardId: env('PINTEREST_BOARD_ID'),
-  },
   telegram: {
     accessToken: env('TELEGRAM_CHANNEL_BOT_TOKEN'),
     botToken: env('TELEGRAM_CHANNEL_BOT_TOKEN'),

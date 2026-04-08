@@ -166,10 +166,10 @@ Commands:
   queue       Manage job queue
 
 Examples:
-  bun run src/cli.ts post --platform linkedin --text "Hello from Nimmit"
+  bun run src/cli.ts post --platform telegram --text "Hello from Nimmit"
   bun run src/cli.ts post --platform all --text "Cross-post" --image-url https://example.com/img.jpg
-  bun run src/cli.ts analytics --platform facebook --post-id 123
-  bun run src/cli.ts schedule --platform all --text "Post at 9am" --time "2026-03-27T09:00:00+07:00"
+  bun run src/cli.ts analytics --platform x --post-id 123
+  bun run src/cli.ts schedule --platform all --text "Post at 9am" --time "2026-04-09T09:00:00+07:00"
   bun run src/cli.ts queue --action list
   bun run src/cli.ts queue --action process`);
       break;

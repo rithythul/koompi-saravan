@@ -18,8 +18,7 @@ import {
   updatePlannedPostStatus,
 } from '../lib/store.js';
 import { createNanoBananaTool } from './nano-banana.js';
-import { createPublishInstagramTool } from './publish-instagram.js';
-import { createPublishTikTokTool } from './publish-tiktok.js';
+import { createPublishTool } from './publish.js';
 import { createRenderHookRevealTool } from './render-hook-reveal.js';
 
 const PLACEHOLDER_PNG_BASE64 =
@@ -145,10 +144,7 @@ export function createExecutePlannedPostTool(configOverrides: GoogleMediaConfigI
 
       const nanoBananaTool = createNanoBananaTool(configOverrides);
       const renderTool = createRenderHookRevealTool(configOverrides);
-      const publishTool =
-        plannedPost.platform === 'instagram'
-          ? createPublishInstagramTool(configOverrides)
-          : createPublishTikTokTool(configOverrides);
+      const publishTool = createPublishTool(configOverrides);
 
       const imagePrompt = [
         plannedPost.hookText,
@@ -216,6 +212,7 @@ export function createExecutePlannedPostTool(configOverrides: GoogleMediaConfigI
             runId,
             caption: plannedPost.caption ?? plannedPost.hookText ?? 'New post',
             videoUrl: resolvedVideoUrl,
+            platform: plannedPost.platform,
           }),
         );
 
