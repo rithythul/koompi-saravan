@@ -8,7 +8,7 @@
 
 import { Hono } from 'hono';
 import type { Bindings, AnalyticsSummary, PostAnalytics } from '../types.js';
-import * as store from '../lib/analytics-store.js';
+import * as db from '../lib/db.js';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -29,7 +29,7 @@ app.get('/summary', async (c) => {
   // Parse range
   const daysBack = range === '14d' ? 14 : range === '90d' ? 90 : range === '1y' ? 365 : 30;
 
-  const summary = store.getAnalyticsSummary(platforms, daysBack);
+  const summary = await db.getAnalyticsSummary(platforms, daysBack);
 
   return c.json({
     kpis: summary.kpis,
@@ -59,13 +59,13 @@ app.get('/posts', async (c) => {
 
   // Parse date range
   const daysBack = range === '14d' ? 14 : range === '90d' ? 90 : range === '1y' ? 365 : 30;
-  const startDate = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString();
+  const startDate = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
 
   // Get posts
-  const posts = store.getPosts({
+  const posts = await db.getPosts({
     platforms,
     startDate,
-    endDate: new Date().toISOString(),
+    endDate: new Date(),
     status: 'published',
     limit,
     offset,
@@ -73,7 +73,7 @@ app.get('/posts', async (c) => {
 
   // Get metrics for posts
   const postIds = posts.map((p) => p.id);
-  const metricsMap = store.getMetricsForPosts(postIds);
+  const metricsMap = await db.getMetricsForPosts(postIds);
 
   // Combine posts with metrics
   const postsWithAnalytics: PostAnalytics[] = posts.map((post) => {
@@ -81,8 +81,8 @@ app.get('/posts', async (c) => {
     return {
       id: post.id,
       platform: post.platform,
-      platformPostId: post.platform_post_id,
-      publishedAt: post.published_at,
+      platformPostId: post.platform_post_id ?? '',
+      publishedAt: post.published_at?.toISOString() ?? '',
       views: metrics?.views ?? 0,
       likes: metrics?.likes ?? 0,
       comments: metrics?.comments ?? 0,
@@ -101,10 +101,10 @@ app.get('/posts', async (c) => {
   }
 
   // Get total count
-  const allPosts = store.getPosts({
+  const allPosts = await db.getPosts({
     platforms,
     startDate,
-    endDate: new Date().toISOString(),
+    endDate: new Date(),
     status: 'published',
   });
 
@@ -124,7 +124,7 @@ app.get('/posts', async (c) => {
 app.get('/posts/:postId', async (c) => {
   const postId = c.req.param('postId');
 
-  const post = store.getPost(postId);
+  const post = await db.getPost(postId);
   if (!post) {
     return c.json({
       error: 'Post not found',
@@ -132,13 +132,13 @@ app.get('/posts/:postId', async (c) => {
     }, 404);
   }
 
-  const metrics = store.getLatestMetrics(postId);
+  const metrics = await db.getLatestMetrics(postId);
 
   return c.json({
     id: post.id,
     platform: post.platform,
-    platformPostId: post.platform_post_id,
-    publishedAt: post.published_at,
+    platformPostId: post.platform_post_id ?? '',
+    publishedAt: post.published_at?.toISOString() ?? '',
     views: metrics?.views ?? 0,
     likes: metrics?.likes ?? 0,
     comments: metrics?.comments ?? 0,
@@ -165,7 +165,6 @@ app.post('/refresh', async (c) => {
   }
 
   // TODO: Implement actual analytics refresh via platform APIs
-  // For now, return a refresh ID
   return c.json({
     message: 'Analytics refresh triggered',
     platform,
@@ -194,7 +193,7 @@ app.get('/performance', async (c) => {
   }[] = [];
 
   for (const platform of platforms) {
-    const hourData = store.getHourPerformance(platform);
+    const hourData = await db.getHourPerformance(platform);
 
     // Find best hours (highest engagement)
     const sortedByEngagement = [...hourData].sort((a, b) => b.avg_engagement_rate - a.avg_engagement_rate);
@@ -225,7 +224,7 @@ app.get('/performance', async (c) => {
 app.get('/hourly/:platform', async (c) => {
   const platform = c.req.param('platform');
 
-  const hourData = store.getHourPerformance(platform);
+  const hourData = await db.getHourPerformance(platform);
 
   return c.json({
     platform,

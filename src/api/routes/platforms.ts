@@ -166,25 +166,26 @@ app.get('/:id/quota', (c) => {
 
 /**
  * Check if platform credentials are configured
+ * Uses process.env directly to match config.ts env var names
  */
-function checkPlatformConfigured(platformId: string, env: Bindings): boolean {
+function checkPlatformConfigured(platformId: string, _env: Bindings): boolean {
   switch (platformId) {
     case 'instagram':
-      return !!(env.INSTAGRAM_ACCESS_TOKEN && env.INSTAGRAM_BUSINESS_ACCOUNT_ID);
+      return !!(process.env.INSTAGRAM_ACCESS_TOKEN && process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID);
     case 'tiktok':
-      return !!(env.TIKTOK_ACCESS_TOKEN && env.TIKTOK_CREATOR_ID);
+      return !!(process.env.TIKTOK_ACCESS_TOKEN && process.env.TIKTOK_CLIENT_KEY);
     case 'youtube':
-      return !!env.YOUTUBE_REFRESH_TOKEN;
+      return !!(process.env.YOUTUBE_ACCESS_TOKEN && process.env.YOUTUBE_CHANNEL_ID);
     case 'facebook':
-      return !!env.FACEBOOK_ACCESS_TOKEN;
+      return !!(process.env.FACEBOOK_PAGE_ACCESS_TOKEN && process.env.FACEBOOK_PAGE_ID);
     case 'pinterest':
-      return !!env.PINTEREST_ACCESS_TOKEN;
+      return !!(process.env.PINTEREST_ACCESS_TOKEN && process.env.PINTEREST_BOARD_ID);
     case 'linkedin':
-      return !!env.LINKEDIN_ACCESS_TOKEN;
+      return !!(process.env.LINKEDIN_ACCESS_TOKEN && process.env.LINKEDIN_ORGANIZATION_ID);
     case 'telegram':
-      return !!(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHANNEL_ID);
+      return !!(process.env.TELEGRAM_CHANNEL_BOT_TOKEN && process.env.TELEGRAM_CHANNEL_ID);
     case 'x':
-      return !!(env.X_API_KEY && env.X_ACCESS_TOKEN);
+      return !!(process.env.X_API_KEY && process.env.X_ACCESS_TOKEN);
     default:
       return false;
   }

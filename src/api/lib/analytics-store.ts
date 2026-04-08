@@ -161,7 +161,7 @@ export function getPostsByPlatform(
   const { limit = 50, offset = 0, status } = options;
 
   let query = 'SELECT * FROM posts WHERE platform = ?';
-  const params: any[] = [platform];
+  const params: (string | number)[] = [platform];
 
   if (status) {
     query += ' AND status = ?';
@@ -187,7 +187,7 @@ export function getPosts(options: {
   const { platforms, status, startDate, endDate, limit = 50, offset = 0 } = options;
 
   let query = 'SELECT * FROM posts WHERE 1=1';
-  const params: any[] = [];
+  const params: (string | number)[] = [];
 
   if (platforms && platforms.length > 0) {
     const placeholders = platforms.map(() => '?').join(',');
@@ -374,7 +374,16 @@ export function getAnalyticsSummary(platforms: string[], daysBack: number = 30):
     GROUP BY p.platform
   `);
 
-  const results = stmt.all(...platforms, startDate) as any[];
+  const results = stmt.all(...platforms, startDate) as Array<{
+    platform: string;
+    posts: number;
+    views: number;
+    likes: number;
+    comments: number;
+    shares: number;
+    saves: number;
+    engagement_rate: number;
+  }>;
 
   const byPlatform: Record<string, {
     views: number;
