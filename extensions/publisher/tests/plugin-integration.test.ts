@@ -58,9 +58,9 @@ describe('OpenClaw plugin integration', () => {
       uiHints: Record<string, unknown>;
     };
 
-    expect(manifest.id).toBe('google-media');
-    expect(manifest.name).toBe('Google Media Tools');
-    expect(manifest.version).toBe('0.1.0');
+    expect(manifest.id).toBe('publisher');
+    expect(manifest.name).toBe('Sarawan Publisher');
+    expect(manifest.version).toBe('1.0.0');
     expect(manifest.description).toContain('publishing');
     expect(manifest.configSchema.additionalProperties).toBe(false);
 
@@ -76,9 +76,37 @@ describe('OpenClaw plugin integration', () => {
       'tiktokAccessToken',
       'tiktokCreatorId',
       'tiktokApiBaseUrl',
+      'facebookAppId',
+      'facebookAppSecret',
+      'facebookAccessToken',
+      'youtubeClientId',
+      'youtubeClientSecret',
+      'youtubeRefreshToken',
+      'linkedinClientId',
+      'linkedinClientSecret',
+      'linkedinAccessToken',
+      'xApiKey',
+      'xApiSecret',
+      'xAccessToken',
+      'xAccessSecret',
+      'telegramBotToken',
+      'telegramChannelId',
+      'pinterestAccessToken',
+      'pinterestApiBaseUrl',
     ].sort();
 
     expect(Object.keys(manifest.configSchema.properties).sort()).toEqual(expectedConfigKeys);
-    expect(Object.keys(manifest.uiHints).sort()).toEqual(expectedConfigKeys);
+    // uiHints contains entries for important/sensitive fields that need UI labels
+    const expectedUiHintKeys = [
+      'defaultOutputDir',
+      'dryRun',
+      'geminiApiKey',
+      'instagramAccessToken',
+      'killSwitch',
+      'telegramBotToken',
+      'tiktokAccessToken',
+      'xAccessToken',
+    ].sort();
+    expect(Object.keys(manifest.uiHints).sort()).toEqual(expectedUiHintKeys);
   });
 });

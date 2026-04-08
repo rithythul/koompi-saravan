@@ -1,14 +1,19 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test, beforeAll } from 'bun:test';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 
+import { initDatabaseModule } from '../lib/db.js';
 import { loadConfig } from '../lib/config.js';
 import { getHourPerformance, getPostsMetricsJoined, initStore, savePost, savePostMetric } from '../lib/store.js';
 import { createAnalyzePatternsTool } from '../tools/analyze-patterns.js';
 import { createGenerateScheduleTool } from '../tools/generate-schedule.js';
 import { createLogPostTool } from '../tools/log-post.js';
 import { createPullAnalyticsTool } from '../tools/pull-analytics.js';
+
+beforeAll(async () => {
+  await initDatabaseModule();
+});
 
 async function createConfig(prefix: string) {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
@@ -24,7 +29,7 @@ describe('phase 3 tools', () => {
     const result = await tool.execute('tool-call', {
       platform: 'tiktok',
       platformPostId: 'tt-live-1',
-      postedAt: '2026-03-19T17:45:00.000Z',
+      postedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 - 2 * 60 * 60 * 1000 - 15 * 60 * 1000).toISOString(),
       contentType: 'hook_reveal',
       videoPath: '/tmp/hook-reveal.mp4',
       caption: 'Caption',
@@ -51,7 +56,7 @@ describe('phase 3 tools', () => {
       id: 'post-analytics-1',
       platform: 'instagram',
       platformPostId: 'ig-analytics-1',
-      postedAt: '2026-03-19T18:00:00.000Z',
+      postedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 - 2 * 60 * 60 * 1000).toISOString(),
       contentType: 'hook_reveal',
       videoPath: '/tmp/hook.mp4',
       scheduledBy: 'manual',
@@ -99,7 +104,7 @@ describe('phase 3 tools', () => {
       savePost(store, {
         id: postId,
         platform: 'tiktok',
-        postedAt: `2026-03-1${index + 1}T${String(hour).padStart(2, '0')}:00:00.000Z`,
+        postedAt: new Date(Date.now() - (10 - index) * 24 * 60 * 60 * 1000 - (24 - hour) * 60 * 60 * 1000).toISOString(),
         contentType: 'hook_reveal',
         videoPath: `/tmp/${postId}.mp4`,
         scheduledBy: 'optimized',
@@ -108,7 +113,7 @@ describe('phase 3 tools', () => {
       savePostMetric(store, {
         id: `metric-${index}`,
         postId,
-        pulledAt: `2026-03-1${index + 1}T${String(hour + 1).padStart(2, '0')}:00:00.000Z`,
+        pulledAt: new Date(Date.now() - (10 - index) * 24 * 60 * 60 * 1000 - (24 - hour - 1) * 60 * 60 * 1000).toISOString(),
         views: index < 2 ? 3200 : 1200,
         likes: index < 2 ? 180 : 65,
         comments: index < 2 ? 14 : 6,
@@ -145,7 +150,7 @@ describe('phase 3 tools', () => {
     savePost(store, {
       id: 'sched-1',
       platform: 'instagram',
-      postedAt: '2026-03-17T18:00:00.000Z',
+      postedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 - 2 * 60 * 60 * 1000).toISOString(),
       contentType: 'hook_reveal',
       videoPath: '/tmp/sched-1.mp4',
       scheduledBy: 'optimized',
@@ -154,7 +159,7 @@ describe('phase 3 tools', () => {
     savePostMetric(store, {
       id: 'sched-metric-1',
       postId: 'sched-1',
-      pulledAt: '2026-03-17T19:00:00.000Z',
+      pulledAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 - 60 * 60 * 1000).toISOString(),
       views: 3000,
       likes: 160,
       comments: 11,
@@ -168,7 +173,7 @@ describe('phase 3 tools', () => {
     savePost(store, {
       id: 'sched-2',
       platform: 'instagram',
-      postedAt: '2026-03-18T21:00:00.000Z',
+      postedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000 - 3 * 60 * 60 * 1000).toISOString(),
       contentType: 'hook_reveal',
       videoPath: '/tmp/sched-2.mp4',
       scheduledBy: 'manual',
@@ -177,7 +182,7 @@ describe('phase 3 tools', () => {
     savePostMetric(store, {
       id: 'sched-metric-2',
       postId: 'sched-2',
-      pulledAt: '2026-03-18T22:00:00.000Z',
+      pulledAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000 - 2 * 60 * 60 * 1000).toISOString(),
       views: 1200,
       likes: 55,
       comments: 5,

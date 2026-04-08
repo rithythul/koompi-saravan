@@ -1,8 +1,9 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test, beforeAll } from 'bun:test';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 
+import { initDatabaseModule } from '../lib/db.js';
 import { loadConfig } from '../lib/config.js';
 import {
   getHourPerformance,
@@ -13,6 +14,10 @@ import {
   savePostMetric,
   updateHourPerformance,
 } from '../lib/store.js';
+
+beforeAll(async () => {
+  await initDatabaseModule();
+});
 
 async function createAnalyticsStore(prefix: string) {
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
@@ -29,7 +34,7 @@ describe('posts and analytics store', () => {
       id: 'post-1',
       platform: 'tiktok',
       platformPostId: 'tt-123',
-      postedAt: '2026-03-19T20:00:00.000Z',
+      postedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
       contentType: 'hook_reveal',
       videoPath: '/tmp/test.mp4',
       caption: 'test caption',
@@ -43,7 +48,7 @@ describe('posts and analytics store', () => {
     savePostMetric(store, {
       id: 'metric-older',
       postId: 'post-1',
-      pulledAt: '2026-03-19T20:15:00.000Z',
+      pulledAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 15 * 60 * 1000).toISOString(),
       views: 800,
       likes: 35,
       comments: 4,
@@ -59,7 +64,7 @@ describe('posts and analytics store', () => {
     savePostMetric(store, {
       id: 'metric-latest',
       postId: 'post-1',
-      pulledAt: '2026-03-19T21:15:00.000Z',
+      pulledAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 75 * 60 * 1000).toISOString(),
       views: 1600,
       likes: 70,
       comments: 8,
@@ -73,7 +78,20 @@ describe('posts and analytics store', () => {
     });
 
     const recentPosts = getRecentPosts(store, { platform: 'tiktok', limit: 5 });
+    console.log('recentPosts count:', recentPosts.length);
+    console.log('first post postedAt:', recentPosts[0]?.postedAt);
+
+    // First, let's check if getPostsMetricsJoined works without daysBack filter
+    const joinedNoFilter = store.db.prepare(`
+      SELECT p.*, m.id AS metric_id, m.views
+      FROM posts p
+      LEFT JOIN post_metrics m ON m.post_id = p.id
+      WHERE p.platform = ?
+    `).all('tiktok');
+    console.log('joined without date filter:', joinedNoFilter.length);
+
     const joined = getPostsMetricsJoined(store, { platform: 'tiktok', daysBack: 7 });
+    console.log('joined count:', joined.length);
 
     expect(recentPosts).toHaveLength(1);
     expect(joined).toHaveLength(1);

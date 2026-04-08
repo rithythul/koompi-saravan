@@ -523,7 +523,18 @@ export function getPostsMetricsJoined(
 
   const rows = store.db
     .prepare(
-      `SELECT
+      `WITH latest_metrics AS (
+         SELECT pm.*
+         FROM post_metrics pm
+         INNER JOIN (
+           SELECT post_id, MAX(pulled_at) AS max_pulled_at
+           FROM post_metrics
+           GROUP BY post_id
+         ) latest
+           ON latest.post_id = pm.post_id
+          AND latest.max_pulled_at = pm.pulled_at
+       )
+       SELECT
          p.*,
          m.id AS metric_id,
          m.pulled_at,
@@ -539,15 +550,9 @@ export function getPostsMetricsJoined(
          m.platform_data,
          m.created_at AS metric_created_at
        FROM posts p
-       LEFT JOIN post_metrics m
-         ON m.post_id = p.id
-        AND m.pulled_at = (
-          SELECT MAX(pm.pulled_at)
-          FROM post_metrics pm
-          WHERE pm.post_id = p.id
-        )
+       LEFT JOIN latest_metrics m ON m.post_id = p.id
        WHERE p.platform = ?
-         AND p.posted_at >= ?
+         AND datetime(p.posted_at) >= datetime(?)
        ORDER BY p.posted_at DESC`,
     )
     .all(options.platform, since) as Record<string, unknown>[];

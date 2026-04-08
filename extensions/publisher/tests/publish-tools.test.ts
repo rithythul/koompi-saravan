@@ -1,12 +1,17 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test, beforeAll } from 'bun:test';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 
+import { initDatabaseModule } from '../lib/db.js';
 import { loadConfig } from '../lib/config.js';
 import { initStore, createRun, getPublishedPostByRunAndPlatform, saveRenderedVideo } from '../lib/store.js';
 import { createPublishInstagramTool } from '../tools/publish-instagram.js';
 import { createPublishTikTokTool } from '../tools/publish-tiktok.js';
+
+beforeAll(async () => {
+  await initDatabaseModule();
+});
 
 async function seedRenderedRun(tempRoot: string, runId: string) {
   const config = loadConfig({ defaultOutputDir: path.join(tempRoot, 'outputs'), dryRun: true });
@@ -43,6 +48,7 @@ describe('publish tools', () => {
     const runId = 'run-instagram';
     const { config, store } = await seedRenderedRun(tempRoot, runId);
 
+    // Reuse the same store instance by passing the existing store
     const tool = createPublishInstagramTool(config);
     const result = await tool.execute('tool-call', {
       runId,
@@ -51,6 +57,9 @@ describe('publish tools', () => {
     });
 
     const payload = JSON.parse(result.content[0].text);
+    if (!payload.success) {
+      throw new Error(`Publish failed: ${payload.error}`);
+    }
     expect(payload.success).toBe(true);
     expect(payload.status).toBe('dry_run');
 

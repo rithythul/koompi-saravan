@@ -1,8 +1,9 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test, beforeAll } from 'bun:test';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 
+import { initDatabaseModule } from '../lib/db.js';
 import { loadConfig } from '../lib/config.js';
 import {
   createRun,
@@ -14,6 +15,10 @@ import {
   saveRenderedVideo,
   updateRunStatus,
 } from '../lib/store.js';
+
+beforeAll(async () => {
+  await initDatabaseModule();
+});
 
 describe('SQLite store', () => {
   test('persists runs and artifacts', async () => {
