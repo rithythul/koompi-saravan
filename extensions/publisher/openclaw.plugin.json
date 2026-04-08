@@ -1,8 +1,9 @@
 {
-  "id": "google-media",
-  "name": "Google Media Tools",
-  "description": "Gemini generation, Remotion rendering, publishing, analytics, and planning tools for social media automation",
-  "version": "0.1.0",
+  "id": "publisher",
+  "name": "Sarawan Publisher",
+  "description": "Multi-platform social media publishing, analytics, and content automation for Instagram, TikTok, YouTube, Facebook, Pinterest, LinkedIn, Telegram, and X",
+  "version": "1.0.0",
+  "main": "index.ts",
   "configSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -13,7 +14,7 @@
       },
       "defaultOutputDir": {
         "type": "string",
-        "description": "Root directory where generated assets and rendered videos are stored"
+        "description": "Root directory where generated assets are stored"
       },
       "dryRun": {
         "type": "boolean",
@@ -25,31 +26,99 @@
       },
       "publicMediaBaseUrl": {
         "type": "string",
-        "description": "Optional public base URL that serves files under the managed output directory for live publishing"
+        "description": "Optional public base URL that serves files for live publishing"
       },
       "instagramAccessToken": {
         "type": "string",
-        "description": "Instagram Graph API access token for publishing and analytics"
+        "description": "Instagram Graph API access token"
       },
       "instagramBusinessAccountId": {
         "type": "string",
-        "description": "Instagram Business account ID used for publishing and analytics"
+        "description": "Instagram Business account ID"
       },
       "instagramApiBaseUrl": {
         "type": "string",
-        "description": "Optional override for the Instagram Graph API base URL"
+        "description": "Instagram Graph API base URL"
       },
       "tiktokAccessToken": {
         "type": "string",
-        "description": "TikTok API access token for publishing and analytics"
+        "description": "TikTok API access token"
       },
       "tiktokCreatorId": {
         "type": "string",
-        "description": "TikTok creator ID used for publishing and analytics"
+        "description": "TikTok creator ID"
       },
       "tiktokApiBaseUrl": {
         "type": "string",
-        "description": "Optional override for the TikTok API base URL"
+        "description": "TikTok API base URL"
+      },
+      "facebookAppId": {
+        "type": "string",
+        "description": "Facebook app ID"
+      },
+      "facebookAppSecret": {
+        "type": "string",
+        "description": "Facebook app secret"
+      },
+      "facebookAccessToken": {
+        "type": "string",
+        "description": "Facebook access token"
+      },
+      "youtubeClientId": {
+        "type": "string",
+        "description": "YouTube OAuth client ID"
+      },
+      "youtubeClientSecret": {
+        "type": "string",
+        "description": "YouTube OAuth client secret"
+      },
+      "youtubeRefreshToken": {
+        "type": "string",
+        "description": "YouTube OAuth refresh token"
+      },
+      "pinterestAccessToken": {
+        "type": "string",
+        "description": "Pinterest access token"
+      },
+      "pinterestApiBaseUrl": {
+        "type": "string",
+        "description": "Pinterest API base URL"
+      },
+      "linkedinClientId": {
+        "type": "string",
+        "description": "LinkedIn client ID"
+      },
+      "linkedinClientSecret": {
+        "type": "string",
+        "description": "LinkedIn client secret"
+      },
+      "linkedinAccessToken": {
+        "type": "string",
+        "description": "LinkedIn access token"
+      },
+      "telegramBotToken": {
+        "type": "string",
+        "description": "Telegram bot token"
+      },
+      "telegramChannelId": {
+        "type": "string",
+        "description": "Telegram channel ID"
+      },
+      "xApiKey": {
+        "type": "string",
+        "description": "X (Twitter) API key"
+      },
+      "xApiSecret": {
+        "type": "string",
+        "description": "X API secret"
+      },
+      "xAccessToken": {
+        "type": "string",
+        "description": "X access token"
+      },
+      "xAccessSecret": {
+        "type": "string",
+        "description": "X access token secret"
       }
     }
   },
@@ -67,28 +136,21 @@
     "killSwitch": {
       "label": "Kill Switch"
     },
-    "publicMediaBaseUrl": {
-      "label": "Public Media Base URL"
-    },
     "instagramAccessToken": {
       "label": "Instagram Access Token",
       "sensitive": true
-    },
-    "instagramBusinessAccountId": {
-      "label": "Instagram Business Account ID"
-    },
-    "instagramApiBaseUrl": {
-      "label": "Instagram API Base URL"
     },
     "tiktokAccessToken": {
       "label": "TikTok Access Token",
       "sensitive": true
     },
-    "tiktokCreatorId": {
-      "label": "TikTok Creator ID"
+    "telegramBotToken": {
+      "label": "Telegram Bot Token",
+      "sensitive": true
     },
-    "tiktokApiBaseUrl": {
-      "label": "TikTok API Base URL"
+    "xAccessToken": {
+      "label": "X Access Token",
+      "sensitive": true
     }
   }
 }
