@@ -78,20 +78,7 @@ describe('posts and analytics store', () => {
     });
 
     const recentPosts = getRecentPosts(store, { platform: 'tiktok', limit: 5 });
-    console.log('recentPosts count:', recentPosts.length);
-    console.log('first post postedAt:', recentPosts[0]?.postedAt);
-
-    // First, let's check if getPostsMetricsJoined works without daysBack filter
-    const joinedNoFilter = store.db.prepare(`
-      SELECT p.*, m.id AS metric_id, m.views
-      FROM posts p
-      LEFT JOIN post_metrics m ON m.post_id = p.id
-      WHERE p.platform = ?
-    `).all('tiktok');
-    console.log('joined without date filter:', joinedNoFilter.length);
-
     const joined = getPostsMetricsJoined(store, { platform: 'tiktok', daysBack: 7 });
-    console.log('joined count:', joined.length);
 
     expect(recentPosts).toHaveLength(1);
     expect(joined).toHaveLength(1);

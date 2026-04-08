@@ -57,9 +57,6 @@ describe('publish tools', () => {
     });
 
     const payload = JSON.parse(result.content[0].text);
-    if (!payload.success) {
-      throw new Error(`Publish failed: ${payload.error}`);
-    }
     expect(payload.success).toBe(true);
     expect(payload.status).toBe('dry_run');
 
