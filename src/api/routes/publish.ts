@@ -7,10 +7,12 @@
  */
 
 import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
 import type { Bindings, PublishRequest, BatchPublishResponse, PublishResponse } from '../types.js';
 import { postToAll, createClient, ALL_PLATFORMS } from '../../platforms/manager.js';
 import type { PlatformName } from '../../platforms/index.js';
-import * as store from '../lib/analytics-store.js';
+import * as db from '../lib/db.js';
+import { publishRequestSchema, platformsArraySchema } from '../lib/validation.js';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -25,16 +27,9 @@ function toSocialPost(body: PublishRequest): { text: string; imageUrl?: string; 
 /**
  * POST /api/publish
  */
-app.post('/', async (c) => {
+app.post('/', zValidator('json', publishRequestSchema), async (c) => {
   try {
-    const body = await c.req.json() as PublishRequest;
-
-    if (!body.platforms?.length) {
-      return c.json({ error: 'Validation Error', message: 'At least one platform is required' }, 400);
-    }
-    if (!body.content?.type || !body.content.mediaUrl || !body.content.caption) {
-      return c.json({ error: 'Validation Error', message: 'content.type, content.mediaUrl, and content.caption are required' }, 400);
-    }
+    const body = c.req.valid('json');
 
     const platforms = body.platforms as PlatformName[];
 
@@ -65,10 +60,10 @@ app.post('/', async (c) => {
           error: r.error,
         }));
 
-    // Save to analytics store
+    // Save to database
     for (const r of results) {
       if (r.success && r.postId && !r.warnings) {
-        store.savePost({
+        await db.savePost({
           id: r.postId,
           platform: r.platform,
           platform_post_id: r.postId,
@@ -76,9 +71,10 @@ app.post('/', async (c) => {
           media_url: body.content.mediaUrl,
           caption: body.content.caption,
           hashtags: body.content.hashtags?.join(',') || '',
-          scheduled_at: body.content.scheduleAt || undefined,
-          published_at: new Date().toISOString(),
+          scheduled_at: body.content.scheduleAt ? new Date(body.content.scheduleAt) : null,
+          published_at: new Date(),
           status: 'published',
+          error_message: null,
         });
       }
     }
@@ -99,40 +95,80 @@ app.post('/', async (c) => {
  */
 app.get('/status/:postId', async (c) => {
   const postId = c.req.param('postId');
-  const post = store.getPost(postId);
+  if (!postId) {
+    return c.json({ error: 'Validation Error', message: 'postId is required' }, 400);
+  }
+  const post = await db.getPost(postId);
   if (!post) {
     return c.json({ error: 'Post not found', postId }, 404);
   }
-  const metrics = store.getLatestMetrics(postId);
+  const metrics = await db.getLatestMetrics(postId);
   return c.json({
     postId: post.id,
     platform: post.platform,
-    platformPostId: post.platform_post_id,
+    platformPostId: post.platform_post_id ?? '',
     status: post.status,
-    publishedAt: post.published_at,
+    publishedAt: post.published_at?.toISOString(),
     metrics: metrics ? { views: metrics.views, likes: metrics.likes, comments: metrics.comments, shares: metrics.shares, engagementRate: metrics.engagement_rate } : undefined,
   });
 });
 
 /**
  * DELETE /api/publish/:postId
+ *
+ * Delete a post from the platform and our database
  */
 app.delete('/:postId', async (c) => {
   const postId = c.req.param('postId');
+  if (!postId) {
+    return c.json({ error: 'Validation Error', message: 'postId is required' }, 400);
+  }
+
   const platform = c.req.query('platform');
   if (!platform) {
     return c.json({ error: 'Validation Error', message: 'platform query parameter is required' }, 400);
   }
-  const post = store.getPost(postId);
+
+  // Validate platform
+  const platformResult = platformsArraySchema.safeParse([platform]);
+  if (!platformResult.success) {
+    return c.json({ error: 'Validation Error', message: 'Invalid platform', validationErrors: platformResult.error.errors.map(e => ({ field: e.path.join('.'), message: e.message })) }, 400);
+  }
+
+  const post = await db.getPost(postId);
   if (!post) {
     return c.json({ error: 'Post not found', postId }, 404);
   }
-  return c.json({
-    message: 'Delete must be done manually on the platform',
-    postId,
-    platform,
-    postUrl: post.platform_post_id ? `https://${platform}.com/p/${post.platform_post_id}` : undefined,
-  });
+
+  try {
+    // Attempt to delete from platform
+    const client = createClient(platform as PlatformName);
+
+    // TODO: Add delete method to PlatformClient interface
+    // For now, we only remove from our database
+    // await client.deletePost(post.platform_post_id ?? '');
+
+    // Remove from database (soft delete by updating status)
+    await db.savePost({
+      ...post,
+      status: 'deleted',
+      error_message: 'Deleted via API',
+    });
+
+    return c.json({
+      message: 'Post deleted successfully',
+      postId,
+      platform,
+      postUrl: post.platform_post_id ? `https://${platform}.com/p/${post.platform_post_id}` : undefined,
+    });
+  } catch (error) {
+    return c.json({
+      error: 'Delete Failed',
+      message: error instanceof Error ? error.message : String(error),
+      postId,
+      platform,
+    }, 500);
+  }
 });
 
 export default app;

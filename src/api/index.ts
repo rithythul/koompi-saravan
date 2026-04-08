@@ -16,9 +16,20 @@ import { rateLimitMiddleware } from './middleware/rate-limit.js';
 const app = new Hono<{ Bindings: Bindings }>();
 
 // Global middleware
+
+// Parse CORS origins from env var
+function parseCorsOrigins(): string | string[] {
+  const corsOrigins = process.env.CORS_ORIGINS;
+  if (!corsOrigins) return process.env.NODE_ENV === 'production' ? [] : '*'; // Default: restricted in prod, open in dev
+  if (corsOrigins === '*') return '*';
+  return corsOrigins.split(',').map(s => s.trim());
+}
+
 app.use('*', cors({
-  origin: '*',
+  origin: parseCorsOrigins(),
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
 }));
 app.use('*', logger());
 app.use('*', prettyJSON());
