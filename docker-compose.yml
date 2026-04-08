@@ -1,0 +1,39 @@
+services:
+  api:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      - DATABASE_URL=postgresql://sarawan:sarawan@postgres:5432/sarawan
+      - API_KEY=${API_KEY:-changeme}
+      - NODE_ENV=production
+    volumes:
+      - api-data:/app/var
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=sarawan
+      - POSTGRES_PASSWORD=sarawan
+      - POSTGRES_DB=sarawan
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sarawan"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  api-data:
+  pg-data:

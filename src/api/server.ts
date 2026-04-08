@@ -10,33 +10,41 @@ import app from './index.js';
 
 const port = parseInt(process.env.PORT || '3001');
 
-console.log(`🚀 Sarawan Social API starting on port ${port}...`);
+function log(level: 'info' | 'error' | 'warn', msg: string, data?: Record<string, unknown>) {
+  const entry = { level, ts: new Date().toISOString(), msg, ...data };
+  if (process.env.NODE_ENV === 'production') {
+    console.log(JSON.stringify(entry));
+  } else {
+    const icons = { info: 'ℹ️', error: '❌', warn: '⚠️' };
+    console.log(`${icons[level]} ${msg}`, data ?? '');
+  }
+}
+
+log('info', 'Sarawan Social API starting', { port, nodeEnv: process.env.NODE_ENV || 'development' });
+
+let server: ReturnType<typeof serve> | null = null;
 
 // Initialize PostgreSQL (non-blocking — falls back to SQLite if unavailable)
 initDb().then(() => {
-  serve({
+  server = serve({
     fetch: app.fetch,
     port,
   });
 
-  console.log(`✅ Sarawan Social API ready at http://localhost:${port}`);
-  console.log(`📚 API endpoints:`);
-  console.log(`   GET  /health`);
-  console.log(`   POST /api/publish`);
-  console.log(`   GET  /api/analytics/summary`);
-  console.log(`   GET  /api/platforms`);
-  console.log(`   POST /api/media/upload`);
+  log('info', 'Sarawan Social API ready', { url: `http://localhost:${port}` });
 }).catch((err) => {
-  console.error('Startup failed:', err);
+  log('error', 'Startup failed', { error: err instanceof Error ? err.message : String(err) });
   process.exit(1);
 });
 
 // Graceful shutdown
-process.on('SIGTERM', async () => {
+async function shutdown(signal: string) {
+  log('info', 'Shutting down', { signal });
+  if (server) server.stop();
   await closeDb();
+  log('info', 'Shutdown complete');
   process.exit(0);
-});
-process.on('SIGINT', async () => {
-  await closeDb();
-  process.exit(0);
-});
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

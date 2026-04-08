@@ -55,13 +55,19 @@ app.post('/', async (c) => {
     }
 
     const content = toSocialPost(body);
-    const results = dryRun
-      ? platforms.map(p => ({ platform: p, success: true, warnings: ['dry run'] }))
-      : await postToAll(content, platforms);
+    const results: PublishResponse[] = dryRun
+      ? platforms.map(p => ({ platform: p, success: true, postId: `dry-run-${crypto.randomUUID().slice(0, 8)}`, warnings: ['dry run'] }))
+      : (await postToAll(content, platforms)).map(r => ({
+          platform: r.platform,
+          success: r.success,
+          postId: r.postId ?? r.url,
+          postUrl: r.url,
+          error: r.error,
+        }));
 
     // Save to analytics store
     for (const r of results) {
-      if (r.success && r.postId) {
+      if (r.success && r.postId && !r.warnings) {
         store.savePost({
           id: r.postId,
           platform: r.platform,

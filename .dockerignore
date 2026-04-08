@@ -1,8 +1,9 @@
 node_modules
-dist
-.env
 .git
 *.md
 var/
 extensions/
 remotion-template/
+tiktok-login.js
+.env
+.env.*
