@@ -1,6 +1,9 @@
-FROM oven/bun:1
+FROM node:22-alpine
 
 WORKDIR /app
+
+# Install Bun
+RUN npm install -g bun
 
 # Install dependencies
 COPY package.json bun.lock ./
@@ -9,9 +12,6 @@ RUN bun install --frozen-lockfile
 # Copy source
 COPY tsconfig.json ./
 COPY src ./src
-
-# Build
-RUN bun build src/api/server.ts --outdir dist --target bun
 
 # Expose API port
 EXPOSE 3001

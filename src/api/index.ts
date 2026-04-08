@@ -9,16 +9,22 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
 import type { Bindings } from './types.js';
+import { authMiddleware } from './middleware/auth.js';
+import { rateLimitMiddleware } from './middleware/rate-limit.js';
 
 // Create Hono app
 const app = new Hono<{ Bindings: Bindings }>();
 
-// Middleware
-app.use('*', cors());
+// Global middleware
+app.use('*', cors({
+  origin: '*',
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+}));
 app.use('*', logger());
 app.use('*', prettyJSON());
+app.use('*', rateLimitMiddleware);
 
-// Health check
+// Health check (no auth)
 app.get('/', (c) => {
   return c.json({
     name: 'Sarawan Social API',
@@ -38,11 +44,15 @@ import analyticsRoutes from './routes/analytics.js';
 import mediaRoutes from './routes/media.js';
 import platformRoutes from './routes/platforms.js';
 
-// Register routes
-app.route('/api/publish', publishRoutes);
-app.route('/api/analytics', analyticsRoutes);
-app.route('/api/media', mediaRoutes);
-app.route('/api/platforms', platformRoutes);
+// Register routes with auth
+const apiRoutes = new Hono<{ Bindings: Bindings }>();
+apiRoutes.use('*', authMiddleware);
+apiRoutes.route('/publish', publishRoutes);
+apiRoutes.route('/analytics', analyticsRoutes);
+apiRoutes.route('/media', mediaRoutes);
+apiRoutes.route('/platforms', platformRoutes);
+
+app.route('/api', apiRoutes);
 
 // 404 handler
 app.notFound((c) => {

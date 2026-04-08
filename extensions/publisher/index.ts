@@ -18,7 +18,8 @@ import { createPlanNextPostTool, planNextPostTool } from './tools/plan-next-post
 import { createPullAnalyticsTool, pullAnalyticsTool } from './tools/pull-analytics.js';
 import { createPublishInstagramTool, publishInstagramTool } from './tools/publish-instagram.js';
 import { createPublishTikTokTool, publishTikTokTool } from './tools/publish-tiktok.js';
-import { createRenderHookRevealTool, renderHookRevealTool } from './tools/render-hook-reveal.js';
+// Temporarily disabled - causes loading issues with OpenClaw
+// import { createRenderHookRevealTool, renderHookRevealTool } from './tools/render-hook-reveal.js';
 import { createRunDailyPlanTool, runDailyPlanTool } from './tools/run-daily-plan.js';
 import { createUpdateHourPerformanceTool, updateHourPerformanceTool } from './tools/update-hour-performance.js';
 import {
@@ -134,7 +135,7 @@ export function createRegisteredTools(configOverrides: GoogleMediaConfigInput = 
   return [
     createConfigValidatorTool(),
     createNanoBananaTool(configOverrides),
-    createRenderHookRevealTool(configOverrides),
+    // createRenderHookRevealTool(configOverrides), // Temporarily disabled
     createPublishInstagramTool(configOverrides),
     createPublishTikTokTool(configOverrides),
     createLogPostTool(configOverrides),
@@ -198,13 +199,28 @@ export function createRegisteredTools(configOverrides: GoogleMediaConfigInput = 
   ];
 }
 
-export const registeredToolNames = createRegisteredTools().map((tool) => tool.name);
+export function getRegisteredToolNames(): string[] {
+  return createRegisteredTools().map((tool) => tool.name);
+}
+
+// Legacy export for compatibility
+export const registeredToolNames = getRegisteredToolNames();
 
 export default function registerGoogleMediaPlugin(
   api: OpenClawPluginApi,
   pluginContext?: OpenClawPluginContext,
 ) {
   const configOverrides = pluginContext?.config ?? {};
+
+  // Initialize database module asynchronously
+  // We don't await it to avoid blocking plugin registration
+  import('./lib/db.js').then(({ initDatabaseModule }) => {
+    initDatabaseModule().catch((err) => {
+      console.error('[publisher] Failed to initialize database module:', err);
+    });
+  }).catch((err) => {
+    console.error('[publisher] Failed to load database module:', err);
+  });
 
   for (const tool of createRegisteredTools(configOverrides)) {
     api.registerTool(tool);
@@ -215,7 +231,7 @@ export default function registerGoogleMediaPlugin(
 export const tools = {
   configValidator: configValidatorTool,
   nanoBanana: nanoBananaTool,
-  renderHookReveal: renderHookRevealTool,
+  // renderHookReveal: renderHookRevealTool, // Temporarily disabled
   publishInstagram: publishInstagramTool,
   publishTikTok: publishTikTokTool,
   logPost: logPostTool,

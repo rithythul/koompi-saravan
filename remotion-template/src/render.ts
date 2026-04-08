@@ -34,7 +34,11 @@ export interface RenderResult {
 }
 
 export function getRemotionProjectRoot(): string {
-  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  // Use __dirname fallback for compatibility with different loaders
+  const _dirname = typeof __dirname !== 'undefined'
+    ? __dirname
+    : path.resolve(path.dirname(fileURLToPath(import.meta.url)));
+  return path.resolve(_dirname, '..');
 }
 
 async function computeSourceHash(projectRoot: string): Promise<string> {

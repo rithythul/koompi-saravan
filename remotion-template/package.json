@@ -1,6 +1,7 @@
 {
   "name": "saravan-remotion",
   "version": "0.1.0",
+  "type": "module",
   "description": "Remotion templates for Saravan social media automation",
   "scripts": {
     "start": "remotion studio",
