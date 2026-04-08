@@ -32,6 +32,8 @@ export interface GoogleMediaConfig {
   xAccessSecret?: string;
   telegramBotToken?: string;
   telegramChannelId?: string;
+  pinterestAccessToken?: string;
+  pinterestApiBaseUrl?: string;
 }
 
 export type GoogleMediaConfigInput = Partial<GoogleMediaConfig>;
@@ -92,7 +94,9 @@ export function loadConfig(overrides: GoogleMediaConfigInput = {}): GoogleMediaC
   const xAccessSecret = overrides.xAccessSecret ?? process.env.X_ACCESS_SECRET ?? undefined;
   const telegramBotToken = overrides.telegramBotToken ?? process.env.TG_BOT_TOKEN ?? undefined;
   const telegramChannelId = overrides.telegramChannelId ?? process.env.TG_CHANNEL_ID ?? undefined;
-  
+  const pinterestAccessToken = overrides.pinterestAccessToken ?? process.env.PINTEREST_ACCESS_TOKEN ?? undefined;
+  const pinterestApiBaseUrl = overrides.pinterestApiBaseUrl ?? process.env.PINTEREST_API_BASE_URL ?? 'https://api.pinterest.com/v5';
+
   // KStorage + Pack paths
   const kstoragePath = overrides.kstoragePath ?? process.env.KSTORAGE_PATH ?? 'kstorage';
   const packsDir = overrides.packsDir ?? process.env.SARAWAN_PACKS_DIR ?? path.join(defaultOutputDir, 'packs');
@@ -125,7 +129,9 @@ export function loadConfig(overrides: GoogleMediaConfigInput = {}): GoogleMediaC
     xAccessToken,
     xAccessSecret,
     telegramBotToken,
-    telegramChannelId
+    telegramChannelId,
+    pinterestAccessToken,
+    pinterestApiBaseUrl
   };
 }
 

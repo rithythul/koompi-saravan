@@ -113,6 +113,7 @@ import {
   cancelJobTool,
   getJobTool,
 } from './tools/scheduler.js';
+import { createPublishTool, publishTool } from './tools/publish.js';
 
 export type OpenClawTool = {
   name: string;
@@ -192,6 +193,8 @@ export function createRegisteredTools(configOverrides: GoogleMediaConfigInput = 
     createListJobsTool(configOverrides),
     createCancelJobTool(configOverrides),
     createGetJobTool(configOverrides),
+    // Unified Publishing
+    createPublishTool(configOverrides),
   ];
 }
 
@@ -271,4 +274,6 @@ export const tools = {
   listJobs: listJobsTool,
   cancelJob: cancelJobTool,
   getJob: getJobTool,
+  // Unified Publishing
+  publish: publishTool,
 };
