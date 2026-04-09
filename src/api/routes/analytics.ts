@@ -3,14 +3,39 @@
  *
  * GET /api/analytics/summary - Get analytics summary
  * GET /api/analytics/posts - Get post-level analytics
- * POST /api/analytics/refresh - Trigger analytics refresh
+ * POST /api/analytics/refresh - Trigger analytics refresh from platform APIs
+ * GET /api/analytics/performance - Get content performance insights
  */
 
 import { Hono } from 'hono';
 import type { Bindings, AnalyticsSummary, PostAnalytics } from '../types.js';
 import * as db from '../lib/db.js';
+import { config } from '../../config.js';
+import {
+  InstagramClient,
+  TikTokClient,
+  YouTubeClient,
+  XClient,
+  LinkedInClient,
+  FacebookClient,
+  PinterestClient,
+  TelegramClient,
+  type AnalyticsData,
+} from '../../platforms/index.js';
 
 const app = new Hono<{ Bindings: Bindings }>();
+
+// Initialize platform clients
+const platformClients = {
+  instagram: new InstagramClient(config.instagram),
+  tiktok: new TikTokClient(config.tiktok),
+  youtube: new YouTubeClient(config.youtube),
+  x: new XClient(config.x),
+  linkedin: new LinkedInClient(config.linkedin),
+  facebook: new FacebookClient(config.facebook),
+  pinterest: new PinterestClient(config.pinterest),
+  telegram: new TelegramClient(config.telegram),
+};
 
 /**
  * GET /api/analytics/summary
@@ -151,25 +176,107 @@ app.get('/posts/:postId', async (c) => {
 /**
  * POST /api/analytics/refresh
  *
- * Trigger analytics refresh for a platform
+ * Trigger analytics refresh for published posts from platform APIs
+ * Supports refreshing a specific platform or all platforms
  */
 app.post('/refresh', async (c) => {
-  const body = await c.req.json();
-  const { platform } = body;
+  const body = await c.req.json().catch(() => ({}));
+  const { platform, daysBack = 7 } = body as { platform?: string; daysBack?: number };
 
-  if (!platform) {
+  if (!db.getPool()) {
     return c.json({
-      error: 'Validation Error',
-      message: 'platform is required',
-    }, 400);
+      error: 'Database not available',
+      message: 'PostgreSQL connection required for analytics refresh',
+    }, 503);
   }
 
-  // TODO: Implement actual analytics refresh via platform APIs
+  const platforms = platform ? [platform] : ['instagram', 'tiktok', 'youtube', 'x', 'linkedin', 'facebook', 'pinterest', 'telegram'] as const;
+  const results = {
+    platforms: [] as string[],
+    postsUpdated: 0,
+    metricsCreated: 0,
+    errors: [] as Array<{ platform: string; postId: string; error: string }>,
+  };
+
+  const startDate = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+
+  for (const p of platforms) {
+    try {
+      const client = platformClients[p as keyof typeof platformClients];
+      if (!client) {
+        results.errors.push({ platform: p, postId: 'N/A', error: 'Platform client not found' });
+        continue;
+      }
+
+      // Get published posts for this platform
+      const posts = await db.getPosts({
+        platforms: [p],
+        startDate,
+        endDate: new Date(),
+        status: 'published',
+        limit: 100,
+      });
+
+      for (const post of posts) {
+        if (!post.platform_post_id) {
+          continue; // Skip posts without platform ID
+        }
+
+        try {
+          const analytics = await client.getAnalytics(post.platform_post_id);
+
+          // Calculate engagement rate
+          const engagementRate = analytics.views > 0
+            ? ((analytics.likes + analytics.comments + analytics.shares) / analytics.views) * 100
+            : 0;
+
+          await db.saveMetrics({
+            post_id: post.id,
+            views: analytics.views,
+            likes: analytics.likes,
+            comments: analytics.comments,
+            shares: analytics.shares,
+            saves: analytics.saves ?? 0,
+            engagement_rate: engagementRate,
+          });
+
+          results.postsUpdated++;
+          results.metricsCreated++;
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          results.errors.push({
+            platform: p,
+            postId: post.platform_post_id ?? post.id,
+            error: errorMsg,
+          });
+
+          // Log specific error hints
+          if (errorMsg.includes('401') || errorMsg.includes('Unauthorized') || errorMsg.includes('authentication')) {
+            results.errors[results.errors.length - 1].error += ' (Auth error: re-authentication required)';
+          } else if (errorMsg.includes('429') || errorMsg.includes('rate limit')) {
+            results.errors[results.errors.length - 1].error += ' (Rate limited: please retry later)';
+          } else if (errorMsg.includes('404') || errorMsg.includes('not found')) {
+            results.errors[results.errors.length - 1].error += ' (Post may have been deleted)';
+          }
+        }
+      }
+
+      results.platforms.push(p);
+    } catch (error) {
+      results.errors.push({
+        platform: p,
+        postId: 'N/A',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   return c.json({
-    message: 'Analytics refresh triggered',
-    platform,
-    status: 'pending',
-    refreshId: crypto.randomUUID(),
+    success: results.errors.length === 0,
+    message: results.errors.length === 0
+      ? 'Analytics refresh completed successfully'
+      : `Analytics refresh completed with ${results.errors.length} errors`,
+    ...results,
   });
 });
 
@@ -183,6 +290,13 @@ app.get('/performance', async (c) => {
   const platformsQuery = c.req.query('platforms');
 
   const platforms = platformsQuery ? platformsQuery.split(',') : ['instagram', 'tiktok', 'youtube'];
+
+  if (!db.getPool()) {
+    return c.json({
+      error: 'Database not available',
+      message: 'PostgreSQL connection required for performance analytics',
+    }, 503);
+  }
 
   // Get hour performance data
   const insights: {
@@ -223,6 +337,13 @@ app.get('/performance', async (c) => {
  */
 app.get('/hourly/:platform', async (c) => {
   const platform = c.req.param('platform');
+
+  if (!db.getPool()) {
+    return c.json({
+      error: 'Database not available',
+      message: 'PostgreSQL connection required for hourly analytics',
+    }, 503);
+  }
 
   const hourData = await db.getHourPerformance(platform);
 
