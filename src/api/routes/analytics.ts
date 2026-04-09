@@ -24,7 +24,7 @@ app.get('/summary', async (c) => {
   // Parse platforms from query
   const platforms = platformsQuery
     ? platformsQuery.split(',')
-    : ['telegram', 'x'];
+    : ['instagram', 'tiktok', 'youtube', 'facebook', 'pinterest', 'linkedin', 'telegram', 'x'];
 
   // Parse range
   const daysBack = range === '14d' ? 14 : range === '90d' ? 90 : range === '1y' ? 365 : 30;
@@ -182,7 +182,7 @@ app.get('/performance', async (c) => {
   const range = c.req.query('range') || '30d';
   const platformsQuery = c.req.query('platforms');
 
-  const platforms = platformsQuery ? platformsQuery.split(',') : ['telegram', 'x'];
+  const platforms = platformsQuery ? platformsQuery.split(',') : ['instagram', 'tiktok', 'youtube'];
 
   // Get hour performance data
   const insights: {

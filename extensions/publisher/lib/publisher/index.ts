@@ -6,6 +6,12 @@
 
 import type { GoogleMediaConfig } from '../config.js';
 import type { BasePublisher, Platform } from './base.js';
+import { createInstagramPublisher } from './instagram.js';
+import { createTikTokPublisher } from './tiktok.js';
+import { createYouTubePublisher } from './youtube.js';
+import { createFacebookPublisher } from './facebook.js';
+import { createPinterestPublisher } from './pinterest.js';
+import { createLinkedInPublisher } from './linkedin.js';
 import { createTelegramPublisher } from './telegram.js';
 import { createXPublisher } from './x.js';
 
@@ -16,6 +22,18 @@ export * from './base.js';
  */
 export function createPublisher(platform: Platform, config: GoogleMediaConfig): BasePublisher {
   switch (platform) {
+    case 'instagram':
+      return createInstagramPublisher(config);
+    case 'tiktok':
+      return createTikTokPublisher(config);
+    case 'youtube':
+      return createYouTubePublisher(config);
+    case 'facebook':
+      return createFacebookPublisher(config);
+    case 'pinterest':
+      return createPinterestPublisher(config);
+    case 'linkedin':
+      return createLinkedInPublisher(config);
     case 'telegram':
       return createTelegramPublisher(config);
     case 'x':
@@ -29,7 +47,7 @@ export function createPublisher(platform: Platform, config: GoogleMediaConfig): 
  * Get list of supported platforms
  */
 export function getSupportedPlatforms(): Platform[] {
-  return ['telegram', 'x'];
+  return ['instagram', 'tiktok', 'youtube', 'facebook', 'pinterest', 'linkedin', 'telegram', 'x'];
 }
 
 /**

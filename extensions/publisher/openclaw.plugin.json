@@ -1,7 +1,7 @@
 {
   "id": "publisher",
   "name": "Sarawan Publisher",
-  "description": "Multi-platform social media publishing, analytics, and content automation for Telegram and X",
+  "description": "Multi-platform social media publishing, analytics, and content automation for Instagram, TikTok, YouTube, Facebook, Pinterest, LinkedIn, Telegram, and X",
   "version": "1.0.0",
   "main": "index.ts",
   "configSchema": {
@@ -27,6 +27,74 @@
       "publicMediaBaseUrl": {
         "type": "string",
         "description": "Optional public base URL that serves files for live publishing"
+      },
+      "instagramAccessToken": {
+        "type": "string",
+        "description": "Instagram Graph API access token"
+      },
+      "instagramBusinessAccountId": {
+        "type": "string",
+        "description": "Instagram Business account ID"
+      },
+      "instagramApiBaseUrl": {
+        "type": "string",
+        "description": "Instagram Graph API base URL"
+      },
+      "tiktokAccessToken": {
+        "type": "string",
+        "description": "TikTok API access token"
+      },
+      "tiktokCreatorId": {
+        "type": "string",
+        "description": "TikTok creator ID"
+      },
+      "tiktokApiBaseUrl": {
+        "type": "string",
+        "description": "TikTok API base URL"
+      },
+      "facebookAppId": {
+        "type": "string",
+        "description": "Facebook app ID"
+      },
+      "facebookAppSecret": {
+        "type": "string",
+        "description": "Facebook app secret"
+      },
+      "facebookAccessToken": {
+        "type": "string",
+        "description": "Facebook access token"
+      },
+      "youtubeClientId": {
+        "type": "string",
+        "description": "YouTube OAuth client ID"
+      },
+      "youtubeClientSecret": {
+        "type": "string",
+        "description": "YouTube OAuth client secret"
+      },
+      "youtubeRefreshToken": {
+        "type": "string",
+        "description": "YouTube OAuth refresh token"
+      },
+      "pinterestAccessToken": {
+        "type": "string",
+        "description": "Pinterest access token"
+      },
+      "pinterestApiBaseUrl": {
+        "type": "string",
+        "description": "Pinterest API base URL"
+      },
+      "linkedinClientId": {
+        "type": "string",
+        "description": "LinkedIn client ID"
+      },
+      "linkedinClientSecret": {
+        "type": "string",
+        "description": "LinkedIn client secret"
+      },
+      "linkedinAccessToken": {
+        "type": "string",
+        "description": "LinkedIn access token"
       },
       "telegramBotToken": {
         "type": "string",
@@ -67,6 +135,14 @@
     },
     "killSwitch": {
       "label": "Kill Switch"
+    },
+    "instagramAccessToken": {
+      "label": "Instagram Access Token",
+      "sensitive": true
+    },
+    "tiktokAccessToken": {
+      "label": "TikTok Access Token",
+      "sensitive": true
     },
     "telegramBotToken": {
       "label": "Telegram Bot Token",

@@ -16,6 +16,8 @@ import { createLogPostTool, logPostTool } from './tools/log-post.js';
 import { createNanoBananaTool, nanoBananaTool } from './tools/nano-banana.js';
 import { createPlanNextPostTool, planNextPostTool } from './tools/plan-next-post.js';
 import { createPullAnalyticsTool, pullAnalyticsTool } from './tools/pull-analytics.js';
+import { createPublishInstagramTool, publishInstagramTool } from './tools/publish-instagram.js';
+import { createPublishTikTokTool, publishTikTokTool } from './tools/publish-tiktok.js';
 // Temporarily disabled - causes loading issues with OpenClaw
 // import { createRenderHookRevealTool, renderHookRevealTool } from './tools/render-hook-reveal.js';
 import { createRunDailyPlanTool, runDailyPlanTool } from './tools/run-daily-plan.js';
@@ -134,6 +136,8 @@ export function createRegisteredTools(configOverrides: GoogleMediaConfigInput = 
     createConfigValidatorTool(),
     createNanoBananaTool(configOverrides),
     // createRenderHookRevealTool(configOverrides), // Temporarily disabled
+    createPublishInstagramTool(configOverrides),
+    createPublishTikTokTool(configOverrides),
     createLogPostTool(configOverrides),
     createLogConversionTool(configOverrides),
     createPullAnalyticsTool(configOverrides),
@@ -228,6 +232,8 @@ export const tools = {
   configValidator: configValidatorTool,
   nanoBanana: nanoBananaTool,
   // renderHookReveal: renderHookRevealTool, // Temporarily disabled
+  publishInstagram: publishInstagramTool,
+  publishTikTok: publishTikTokTool,
   logPost: logPostTool,
   logConversion: logConversionTool,
   pullAnalytics: pullAnalyticsTool,
@@ -283,7 +289,7 @@ export const tools = {
   scheduleJob: scheduleJobTool,
   listJobs: listJobsTool,
   cancelJob: cancelJobTool,
-  getJobTool: getJobTool,
+  getJob: getJobTool,
   // Unified Publishing
   publish: publishTool,
 };

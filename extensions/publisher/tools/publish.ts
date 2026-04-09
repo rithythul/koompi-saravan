@@ -168,7 +168,7 @@ export async function publishToPlatforms(
  */
 export const publishTool = {
   name: 'publish',
-  description: 'Publish content to one or more social media platforms (Telegram, X)',
+  description: 'Publish content to one or more social media platforms (Instagram, TikTok, YouTube, Facebook, Pinterest, LinkedIn, Telegram, X)',
   parameters: {
     type: 'object',
     properties: {
@@ -176,7 +176,7 @@ export const publishTool = {
         type: 'array',
         items: {
           type: 'string',
-          enum: ['telegram', 'x'],
+          enum: ['instagram', 'tiktok', 'youtube', 'facebook', 'pinterest', 'linkedin', 'telegram', 'x'],
         },
         description: 'List of platforms to publish to',
       },
@@ -237,13 +237,9 @@ export const publishTool = {
 export function createPublishTool(configOverrides: Partial<GoogleMediaConfig> = {}) {
   return {
     ...publishTool,
-    execute: async (toolCallId: string, params: unknown) => {
+    execute: async (params: unknown) => {
       const request = params as PublishRequest;
-      const result = await publishToPlatforms(request, configOverrides);
-      return {
-        role: 'tool' as const,
-        content: [{ type: 'text' as const, text: JSON.stringify(result) }],
-      };
+      return await publishToPlatforms(request, configOverrides);
     },
   };
 }

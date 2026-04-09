@@ -8,6 +8,12 @@ import { z } from 'zod';
 
 // Platform names
 export const PLATFORM_NAMES = [
+  'linkedin',
+  'facebook',
+  'instagram',
+  'tiktok',
+  'youtube',
+  'pinterest',
   'telegram',
   'x',
 ] as const;
@@ -69,8 +75,13 @@ export const mediaUrlUploadSchema = z.object({
 export const platformConfigSchema = z.object({
   accessToken: z.string().min(1, 'Access token is required'),
   // Platform-specific fields
-  botToken: z.string().optional(),
+  orgId: z.string().optional(),
+  pageId: z.string().optional(),
+  accountId: z.string().optional(),
+  clientKey: z.string().optional(),
   channelId: z.string().optional(),
+  boardId: z.string().optional(),
+  botToken: z.string().optional(),
   apiKey: z.string().optional(),
   apiSecret: z.string().optional(),
   accessTokenSecret: z.string().optional(),

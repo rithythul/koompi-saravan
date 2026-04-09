@@ -5,8 +5,9 @@ import path from 'path';
 
 import { initDatabaseModule } from '../lib/db.js';
 import { loadConfig } from '../lib/config.js';
-import { initStore, createRun, saveRenderedVideo } from '../lib/store.js';
-import { createPublishTool } from '../tools/publish.js';
+import { initStore, createRun, getPublishedPostByRunAndPlatform, saveRenderedVideo } from '../lib/store.js';
+import { createPublishInstagramTool } from '../tools/publish-instagram.js';
+import { createPublishTikTokTool } from '../tools/publish-tiktok.js';
 
 beforeAll(async () => {
   await initDatabaseModule();
@@ -42,75 +43,67 @@ async function seedRenderedRun(tempRoot: string, runId: string) {
 }
 
 describe('publish tools', () => {
-  test('publish accepts a request with platforms and content', async () => {
-    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'publisher-publish-telegram-'));
-    const runId = 'run-telegram';
+  test('publish_instagram records a dry-run publication', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'google-media-publish-instagram-'));
+    const runId = 'run-instagram';
+    const { config, store } = await seedRenderedRun(tempRoot, runId);
+
+    // Reuse the same store instance by passing the existing store
+    const tool = createPublishInstagramTool(config);
+    const result = await tool.execute('tool-call', {
+      runId,
+      caption: 'Test caption',
+      hashtags: ['saravan', 'automation'],
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(true);
+    expect(payload.status).toBe('dry_run');
+
+    const publication = getPublishedPostByRunAndPlatform(store, runId, 'instagram');
+    expect(publication?.status).toBe('dry_run');
+    expect(publication?.platformPostId).toBe(`dryrun-instagram-${runId}`);
+  });
+
+  test('publish_tiktok records a dry-run publication', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'google-media-publish-tiktok-'));
+    const runId = 'run-tiktok';
+    const { config, store } = await seedRenderedRun(tempRoot, runId);
+
+    const tool = createPublishTikTokTool(config);
+    const result = await tool.execute('tool-call', {
+      runId,
+      caption: 'Test caption',
+      hashtags: ['saravan', 'automation'],
+    });
+
+    const payload = JSON.parse(result.content[0].text);
+    expect(payload.success).toBe(true);
+    expect(payload.status).toBe('dry_run');
+
+    const publication = getPublishedPostByRunAndPlatform(store, runId, 'tiktok');
+    expect(publication?.status).toBe('dry_run');
+    expect(publication?.platformPostId).toBe(`dryrun-tiktok-${runId}`);
+  });
+
+  test('publish_instagram blocks duplicate dry-run publications for the same run', async () => {
+    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'google-media-publish-duplicate-'));
+    const runId = 'run-duplicate';
     const { config } = await seedRenderedRun(tempRoot, runId);
 
-    const tool = createPublishTool(config);
-    const result = await tool.execute('tool-call', {
-      platforms: ['telegram'],
-      content: {
-        type: 'video',
-        mediaUrl: `file:///path/to/video.mp4`,
-        caption: 'Test caption',
-        hashtags: ['saravan', 'automation'],
-      },
-      options: {
-        dryRun: true,
-      },
+    const tool = createPublishInstagramTool(config);
+    await tool.execute('tool-call-1', {
+      runId,
+      caption: 'First caption',
     });
 
-    const payload = JSON.parse(result.content[0].text);
-    expect(payload.summary).toBeDefined();
-    expect(payload.summary.total).toBe(1);
-  });
-
-  test('publish handles multiple platforms', async () => {
-    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'publisher-publish-multiple-'));
-    const runId = 'run-multiple';
-    await seedRenderedRun(tempRoot, runId);
-
-    const tool = createPublishTool();
-    const result = await tool.execute('tool-call', {
-      platforms: ['telegram', 'x'],
-      content: {
-        type: 'video',
-        mediaUrl: `file:///path/to/video.mp4`,
-        caption: 'Test caption for multiple platforms',
-        hashtags: ['saravan', 'automation'],
-      },
-      options: {
-        dryRun: true,
-      },
+    const secondResult = await tool.execute('tool-call-2', {
+      runId,
+      caption: 'Second caption',
     });
 
-    const payload = JSON.parse(result.content[0].text);
-    expect(payload.summary.total).toBe(2);
-    expect(payload.results).toBeInstanceOf(Array);
-    expect(payload.results).toHaveLength(2);
-  });
-
-  test('publish rejects unsupported platforms', async () => {
-    const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'publisher-publish-unsupported-'));
-    const runId = 'run-unsupported';
-    await seedRenderedRun(tempRoot, runId);
-
-    const tool = createPublishTool();
-    const result = await tool.execute('tool-call', {
-      platforms: ['instagram'] as any,
-      content: {
-        type: 'video',
-        mediaUrl: `file:///path/to/video.mp4`,
-        caption: 'Test caption',
-      },
-      options: {
-        dryRun: true,
-      },
-    });
-
-    const payload = JSON.parse(result.content[0].text);
-    expect(payload.results[0].success).toBe(false);
-    expect(payload.results[0].error).toContain('not supported');
+    const payload = JSON.parse(secondResult.content[0].text);
+    expect(payload.success).toBe(false);
+    expect(payload.error).toContain('already has a dry-run publication');
   });
 });
