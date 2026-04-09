@@ -7,10 +7,27 @@
 
 import { randomUUID } from 'crypto';
 import { mkdir, writeFile, readFile, readdir, rm } from 'fs/promises';
-import { join } from 'path';
+import { join, resolve as resolvePath } from 'path';
 
 import { generateSlideContent, generateFallbackSlides, type SlideContent } from './ai-generator.js';
 import { generateSlideImages, type GeneratedImage } from './image-generator.js';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function validateSlideshowId(id: string): void {
+  if (!UUID_REGEX.test(id)) {
+    throw new Error(`Invalid slideshow ID: must be a valid UUID`);
+  }
+}
+
+function safeSlideshowDir(id: string): string {
+  validateSlideshowId(id);
+  const dir = resolvePath(DEFAULT_OUTPUT_DIR, id);
+  if (!dir.startsWith(resolvePath(DEFAULT_OUTPUT_DIR))) {
+    throw new Error('Path traversal detected');
+  }
+  return dir;
+}
 
 export interface GenerateSlideshowRequest {
   prompt: string;
@@ -189,7 +206,7 @@ async function saveManifest(manifest: SlideshowManifest, outputDir: string): Pro
  */
 export async function loadSlideshowManifest(id: string): Promise<SlideshowManifest | null> {
   try {
-    const manifestPath = join(DEFAULT_OUTPUT_DIR, id, 'manifest.json');
+    const manifestPath = join(safeSlideshowDir(id), 'manifest.json');
     const content = await readFile(manifestPath, 'utf-8');
     return JSON.parse(content) as SlideshowManifest;
   } catch {
@@ -248,7 +265,7 @@ export async function getSlideshow(id: string): Promise<GenerateSlideshowResult 
  */
 export async function deleteSlideshow(id: string): Promise<boolean> {
   try {
-    const slideshowDir = join(DEFAULT_OUTPUT_DIR, id);
+    const slideshowDir = safeSlideshowDir(id);
     await rm(slideshowDir, { recursive: true, force: true });
     return true;
   } catch {

@@ -15,6 +15,23 @@ import { generateSlideImages, type GeneratedImage } from './image-generator.js';
 
 const STORAGE_BASE_DIR = './var/slideshows';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function validateSlideshowId(id: string): void {
+  if (!UUID_REGEX.test(id)) {
+    throw new Error(`Invalid slideshow ID: must be a valid UUID`);
+  }
+}
+
+function safeSlideshowDir(id: string, baseDir: string = STORAGE_BASE_DIR): string {
+  validateSlideshowId(id);
+  const dir = resolvePath(baseDir, id);
+  if (!dir.startsWith(resolvePath(baseDir))) {
+    throw new Error("Path traversal detected");
+  }
+  return dir;
+}
+
 export interface SlideshowConfig {
   id: string;
   prompt: string;
@@ -65,7 +82,7 @@ async function saveSlideshowConfig(config: SlideshowConfig): Promise<void> {
  */
 async function loadSlideshowConfig(slideshowId: string, baseDir: string = STORAGE_BASE_DIR): Promise<SlideshowConfig | null> {
   try {
-    const configPath = join(baseDir, slideshowId, 'slideshow.json');
+    const configPath = join(safeSlideshowDir(slideshowId, baseDir), 'slideshow.json');
     const content = await readFile(configPath, 'utf-8');
     return JSON.parse(content) as SlideshowConfig;
   } catch {

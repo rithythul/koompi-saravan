@@ -87,8 +87,8 @@ app.post('/generate', zValidator('json', generateSlideshowSchema), async (c) => 
 app.get('/:id', async (c) => {
   const slideshowId = c.req.param('id');
 
-  if (!slideshowId) {
-    return c.json({ error: 'Validation Error', message: 'slideshowId is required' }, 400);
+  if (!slideshowId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slideshowId)) {
+    return c.json({ error: 'Validation Error', message: 'slideshowId must be a valid UUID' }, 400);
   }
 
   const result = await getSlideshow(slideshowId);
@@ -142,8 +142,8 @@ app.get('/list', async (c) => {
 app.delete('/:id', async (c) => {
   const slideshowId = c.req.param('id');
 
-  if (!slideshowId) {
-    return c.json({ error: 'Validation Error', message: 'slideshowId is required' }, 400);
+  if (!slideshowId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slideshowId)) {
+    return c.json({ error: 'Validation Error', message: 'slideshowId must be a valid UUID' }, 400);
   }
 
   const deleted = await deleteSlideshow(slideshowId);
