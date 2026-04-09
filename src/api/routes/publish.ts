@@ -3,13 +3,21 @@
  *
  * POST /api/publish - Publish to one or more platforms
  * GET /api/publish/status/:postId - Get publish status
+ * POST /api/publish/retry/:postId - Retry a failed post
  * DELETE /api/publish/:postId - Delete a post
  */
 
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
-import type { Bindings, PublishRequest, BatchPublishResponse, PublishResponse } from '../types.js';
-import { postToAll, createClient, ALL_PLATFORMS } from '../../platforms/manager.js';
+import type {
+  Bindings,
+  PublishRequest,
+  BatchPublishResponse,
+  PublishResponse,
+  RetryResponse,
+  RetryOptions,
+} from '../types.js';
+import { postToAll, createClient, ALL_PLATFORMS, retryPublishAll, MAX_RETRIES } from '../../platforms/manager.js';
 import type { PlatformName } from '../../platforms/index.js';
 import * as db from '../lib/db.js';
 import { publishRequestSchema, platformsArraySchema } from '../lib/validation.js';
@@ -108,23 +116,28 @@ app.post('/', zValidator('json', publishRequestSchema), async (c) => {
     }
 
     const content = toSocialPost(body);
-    const results: PublishResponse[] = dryRun
-      ? platforms.map(p => ({ platform: p, success: true, postId: `dry-run-${crypto.randomUUID().slice(0, 8)}`, warnings: ['dry run'] }))
-      : (await postToAll(content, platforms)).map(r => ({
-          platform: r.platform,
-          success: r.success,
-          postId: r.postId ?? r.url,
-          postUrl: r.url,
-          error: r.error,
-        }));
+    const publishResults = dryRun
+      ? platforms.map(p => ({ platform: p, success: true as const, postId: `dry-run-${crypto.randomUUID().slice(0, 8)}`, url: undefined as string | undefined, error: undefined as string | undefined, retryCount: 0, errorType: null as string | null }))
+      : await retryPublishAll(content, platforms) as Array<{ platform: string; success: boolean; postId?: string; url?: string; error?: string; retryCount: number; errorType: string | null }>;
+
+    const results: PublishResponse[] = publishResults.map(r => ({
+      platform: r.platform,
+      success: r.success,
+      postId: r.postId ?? r.url,
+      postUrl: r.url,
+      error: r.error,
+    }));
 
     // Save to database
-    for (const r of results) {
-      if (r.success && r.postId && !r.warnings) {
+    for (let i = 0; i < publishResults.length; i++) {
+      const r = publishResults[i];
+      const postId = r.postId ?? r.url ?? `pending-${crypto.randomUUID()}`;
+
+      if (r.success) {
         await db.savePost({
-          id: r.postId,
+          id: postId,
           platform: r.platform,
-          platform_post_id: r.postId,
+          platform_post_id: r.postId ?? null,
           content_type: body.content.type,
           media_url: body.content.mediaUrl,
           caption: body.content.caption,
@@ -135,6 +148,29 @@ app.post('/', zValidator('json', publishRequestSchema), async (c) => {
           error_message: null,
           content_hash: contentHash,
           external_id: body.external_id || null,
+          retry_count: 0,
+          last_retry_at: null,
+          error_type: null,
+        });
+      } else if (r.errorType === 'permanent' || r.retryCount >= MAX_RETRIES) {
+        // Save failed post with error info
+        await db.savePost({
+          id: postId,
+          platform: r.platform,
+          platform_post_id: null,
+          content_type: body.content.type,
+          media_url: body.content.mediaUrl,
+          caption: body.content.caption,
+          hashtags: body.content.hashtags?.join(',') || '',
+          scheduled_at: body.content.scheduleAt ? new Date(body.content.scheduleAt) : null,
+          published_at: null,
+          status: 'failed',
+          error_message: r.error ?? 'Unknown error',
+          content_hash: contentHash,
+          external_id: body.external_id || null,
+          retry_count: r.retryCount,
+          last_retry_at: r.retryCount > 0 ? new Date() : null,
+          error_type: (r.errorType as import('../types.js').ErrorType) ?? null,
         });
       }
     }
@@ -173,6 +209,138 @@ app.get('/status/:postId', async (c) => {
     publishedAt: post.published_at?.toISOString(),
     metrics: metrics ? { views: metrics.views, likes: metrics.likes, comments: metrics.comments, shares: metrics.shares, engagementRate: metrics.engagement_rate } : undefined,
   });
+});
+
+/**
+ * POST /api/publish/retry/:postId
+ *
+ * Retry a failed post
+ */
+app.post('/retry/:postId', async (c) => {
+  const postId = c.req.param('postId');
+  if (!postId) {
+    return c.json({ error: 'Validation Error', message: 'postId is required' }, 400);
+  }
+
+  const post = await db.getPost(postId);
+  if (!post) {
+    return c.json({ error: 'Post not found', postId }, 404);
+  }
+
+  if (post.status !== 'failed') {
+    return c.json({
+      error: 'Invalid State',
+      message: `Post is ${post.status}, only failed posts can be retried`,
+      postId,
+      currentStatus: post.status,
+    }, 400);
+  }
+
+  const maxRetries = 3;
+  if (post.retry_count >= maxRetries) {
+    return c.json({
+      error: 'Max Retries Exceeded',
+      message: `Post has been retried ${post.retry_count} times, max ${maxRetries} retries allowed`,
+      postId,
+      retryCount: post.retry_count,
+    }, 400);
+  }
+
+  // Check if error is permanent - don't allow retry for permanent errors
+  if (post.error_type === 'permanent') {
+    return c.json({
+      error: 'Permanent Error',
+      message: 'Post failed with a permanent error that cannot be retried',
+      postId,
+      errorMessage: post.error_message,
+    }, 400);
+  }
+
+  try {
+    // Reconstruct the social post from the database record
+    const content = {
+      text: (post.caption ?? '') + (post.hashtags ? '\n' + post.hashtags.split(',').map(t => '#' + t).join(' ') : ''),
+      imageUrl: post.content_type === 'image' ? post.media_url : undefined,
+      videoPath: post.content_type === 'video' ? post.media_url : undefined,
+    };
+
+    // Update status to publishing
+    await db.savePost({
+      ...post,
+      status: 'publishing',
+    });
+
+    // Retry the publish with auto-retry for transient errors
+    const result = await retryPublishAll(content, [post.platform as PlatformName]);
+    const r = result[0];
+
+    if (r.success) {
+      // Update post as published
+      await db.savePost({
+        ...post,
+        status: 'published',
+        platform_post_id: r.postId ?? null,
+        published_at: new Date(),
+        error_message: null,
+        retry_count: post.retry_count + 1,
+        last_retry_at: new Date(),
+        error_type: null,
+      });
+
+      return c.json({
+        postId,
+        status: 'published',
+        retryCount: post.retry_count + 1,
+        results: [{
+          platform: r.platform,
+          success: true,
+          postId: r.postId ?? r.url,
+          postUrl: r.url,
+        }],
+      } as RetryResponse);
+    }
+
+    // Update post with new error info
+    await db.savePost({
+      ...post,
+      status: 'failed',
+      error_message: r.error ?? 'Unknown error',
+      retry_count: post.retry_count + 1,
+      last_retry_at: new Date(),
+      error_type: (r.errorType as import('../types.js').ErrorType) ?? null,
+    });
+
+    const isMaxRetriesExceeded = post.retry_count + 1 >= maxRetries;
+
+    return c.json({
+      postId,
+      status: 'failed',
+      retryCount: post.retry_count + 1,
+      results: [{
+        platform: r.platform,
+        success: false,
+        error: r.error,
+      }],
+      error: isMaxRetriesExceeded ? 'Max retries exceeded' : r.error,
+    } as RetryResponse, isMaxRetriesExceeded ? 400 : 200);
+  } catch (error) {
+    const errorType = db.classifyError(error);
+    await db.savePost({
+      ...post,
+      status: 'failed',
+      error_message: error instanceof Error ? error.message : String(error),
+      retry_count: post.retry_count + 1,
+      last_retry_at: new Date(),
+      error_type: errorType,
+    });
+
+    return c.json({
+      error: 'Retry Failed',
+      message: error instanceof Error ? error.message : String(error),
+      postId,
+      retryCount: post.retry_count + 1,
+    }, 500);
+  }
 });
 
 /**

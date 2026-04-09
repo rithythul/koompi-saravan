@@ -32,6 +32,9 @@ function createClient(platform: PlatformName): PlatformClient {
 
 const ALL_PLATFORMS: PlatformName[] = ['linkedin', 'facebook', 'instagram', 'tiktok', 'youtube', 'pinterest', 'telegram', 'x'];
 
+// Re-export retry utilities
+export { classifyError, retryPublish, retryPublishAll, MAX_RETRIES, BACKOFF_DELAYS } from './retry.js';
+
 export async function postToAll(
   content: SocialPost,
   platforms: PlatformName[] = ALL_PLATFORMS,

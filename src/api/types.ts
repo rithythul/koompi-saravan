@@ -118,3 +118,17 @@ export interface ErrorResponse {
   message?: string;
   validationErrors?: ValidationError[];
 }
+
+export type ErrorType = 'transient' | 'permanent' | null;
+
+export interface RetryResponse {
+  postId: string;
+  status: 'published' | 'failed';
+  retryCount: number;
+  results?: PublishResponse[];
+  error?: string;
+}
+
+export interface RetryOptions {
+  maxRetries?: number;
+}

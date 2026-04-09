@@ -10,6 +10,8 @@
 
 import postgres from 'postgres';
 
+export type ErrorType = 'transient' | 'permanent' | null;
+
 export interface PostRecord {
   id: string;
   platform: string;
@@ -24,6 +26,9 @@ export interface PostRecord {
   error_message: string | null;
   content_hash: string | null;
   external_id: string | null;
+  retry_count: number;
+  last_retry_at: Date | null;
+  error_type: ErrorType;
   created_at: Date;
   updated_at: Date;
 }
@@ -96,6 +101,9 @@ export async function initDb(): Promise<boolean> {
         error_message TEXT,
         content_hash TEXT,
         external_id TEXT,
+        retry_count INTEGER NOT NULL DEFAULT 0,
+        last_retry_at TIMESTAMPTZ,
+        error_type TEXT CHECK (error_type IN ('transient', 'permanent') OR error_type IS NULL),
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW()
       )
@@ -107,6 +115,15 @@ export async function initDb(): Promise<boolean> {
     await sql`CREATE INDEX IF NOT EXISTS idx_posts_published_at ON posts(published_at)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_posts_content_hash ON posts(content_hash)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_posts_external_id ON posts(external_id)`;
+
+    // Migration: Add new columns for retry functionality (for existing databases)
+    try {
+      await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS retry_count INTEGER NOT NULL DEFAULT 0`;
+      await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS last_retry_at TIMESTAMPTZ`;
+      await sql`ALTER TABLE posts ADD COLUMN IF NOT EXISTS error_type TEXT CHECK (error_type IN ('transient', 'permanent') OR error_type IS NULL)`;
+    } catch {
+      // Columns may already exist, ignore error
+    }
 
     // Create metrics table
     await sql`
@@ -168,15 +185,21 @@ export async function savePost(post: Omit<PostRecord, 'created_at' | 'updated_at
   await sql`
     INSERT INTO posts (
       id, platform, platform_post_id, content_type, media_url, caption, hashtags,
-      scheduled_at, published_at, status, error_message, content_hash, external_id, created_at, updated_at
+      scheduled_at, published_at, status, error_message, content_hash, external_id,
+      retry_count, last_retry_at, error_type, created_at, updated_at
     ) VALUES (
       ${post.id}, ${post.platform}, ${post.platform_post_id}, ${post.content_type},
       ${post.media_url}, ${post.caption}, ${post.hashtags}, ${post.scheduled_at},
-      ${post.published_at}, ${post.status}, ${post.error_message}, ${post.content_hash}, ${post.external_id}, ${now}, ${now}
+      ${post.published_at}, ${post.status}, ${post.error_message}, ${post.content_hash}, ${post.external_id},
+      ${post.retry_count ?? 0}, ${post.last_retry_at ?? null}, ${post.error_type ?? null}, ${now}, ${now}
     )
     ON CONFLICT (id) DO UPDATE SET
       status = EXCLUDED.status,
+      platform_post_id = EXCLUDED.platform_post_id,
       error_message = EXCLUDED.error_message,
+      retry_count = EXCLUDED.retry_count,
+      last_retry_at = EXCLUDED.last_retry_at,
+      error_type = EXCLUDED.error_type,
       updated_at = ${now}
   `;
 }
@@ -494,4 +517,95 @@ export async function getAnalyticsSummary(platforms: string[], daysBack: number 
     },
     byPlatform,
   };
+}
+
+/**
+ * Classify an error as transient or permanent based on error message/status
+ */
+export function classifyError(error: string | Error | unknown): ErrorType {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const lowerMessage = errorMessage.toLowerCase();
+
+  // Transient errors (should retry)
+  const transientPatterns = [
+    'timeout', 'timed out', 'etimedout', 'esockettimedout',
+    'econnreset', 'econnrefused', 'network',
+    'rate limit', '429', 'too many requests',
+    '503', 'service unavailable', '502', 'bad gateway',
+    '504', 'gateway timeout',
+    'temporary', 'try again', 'unavailable',
+  ];
+
+  // Permanent errors (should not retry)
+  const permanentPatterns = [
+    '401', 'unauthorized', 'authentication',
+    '403', 'forbidden',
+    '404', 'not found',
+    '400', 'bad request', 'invalid',
+    'access token', 'expired token', 'invalid token',
+    'permission denied', 'not allowed',
+  ];
+
+  for (const pattern of permanentPatterns) {
+    if (lowerMessage.includes(pattern)) {
+      return 'permanent';
+    }
+  }
+
+  for (const pattern of transientPatterns) {
+    if (lowerMessage.includes(pattern)) {
+      return 'transient';
+    }
+  }
+
+  // Default to permanent for unknown errors
+  return 'permanent';
+}
+
+/**
+ * Update post with retry information
+ */
+export async function updatePostRetry(
+  postId: string,
+  retryCount: number,
+  errorType: ErrorType,
+  errorMessage: string | null,
+): Promise<void> {
+  if (!sql) throw new Error('PostgreSQL not connected');
+  const now = new Date();
+  await sql`
+    UPDATE posts
+    SET retry_count = ${retryCount},
+        last_retry_at = ${now},
+        error_type = ${errorType},
+        error_message = ${errorMessage},
+        updated_at = ${now}
+    WHERE id = ${postId}
+  `;
+}
+
+/**
+ * Get failed posts that are eligible for retry
+ */
+export async function getFailedPosts(options: {
+  errorType?: ErrorType;
+  maxRetries?: number;
+  limit?: number;
+} = {}): Promise<PostRecord[]> {
+  if (!sql) throw new Error('PostgreSQL not connected');
+  const { errorType, maxRetries = 3, limit = 50 } = options;
+
+  let queryString = 'SELECT * FROM posts WHERE status = $1 AND retry_count < $2';
+  const params: (string | number)[] = ['failed', maxRetries];
+  let paramIndex = 3;
+
+  if (errorType) {
+    queryString += ` AND error_type = $${paramIndex++}`;
+    params.push(errorType);
+  }
+
+  queryString += ` ORDER BY created_at DESC LIMIT $${paramIndex}`;
+  params.push(limit);
+
+  return await query<PostRecord>(queryString, params);
 }
