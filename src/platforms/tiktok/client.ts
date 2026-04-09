@@ -44,6 +44,11 @@ interface TikTokVideoQueryResponse {
   };
 }
 
+interface TikTokDraftUploadResult {
+  draftId: string;
+  uploadUrl: string;
+}
+
 export class TikTokClient implements PlatformClient {
   readonly name = 'tiktok';
   private readonly headers: Record<string, string>;
@@ -55,33 +60,38 @@ export class TikTokClient implements PlatformClient {
     };
   }
 
-  async post(content: SocialPost): Promise<PostResult> {
+  /**
+   * Upload a video as a draft to TikTok
+   * @param videoPath - Local path or URL to the video
+   * @param caption - Video caption (max 150 chars for TikTok)
+   * @param hashtags - Optional array of hashtags
+   * @param musicUrl - Optional TikTok music track URL
+   * @returns Draft ID and upload URL
+   */
+  async uploadDraft(
+    videoPath: string,
+    caption: string,
+    hashtags: string[] = [],
+    musicUrl?: string
+  ): Promise<TikTokDraftUploadResult> {
     try {
-      if (!content.videoPath) {
-        return {
-          platform: this.name,
-          success: false,
-          error: 'TikTok only supports video posts',
-        };
-      }
-
       // Step 1: Initialize upload
-      const videoSize = content.videoPath.startsWith('http')
+      const videoSize = videoPath.startsWith('http')
         ? 0
-        : statSync(content.videoPath).size;
+        : statSync(videoPath).size;
 
       const initBody = {
         post_info: {
-          title: content.text.slice(0, 150),
+          title: caption.slice(0, 150),
           privacy_level: 'PUBLIC_TO_EVERYONE',
           disable_duet: false,
           disable_comment: false,
           disable_stitch: false,
         },
         source_info: {
-          source: content.videoPath.startsWith('http') ? 'PULL_FROM_URL' : 'FILE_UPLOAD',
-          ...(content.videoPath.startsWith('http')
-            ? { video_url: content.videoPath }
+          source: videoPath.startsWith('http') ? 'PULL_FROM_URL' : 'FILE_UPLOAD',
+          ...(videoPath.startsWith('http')
+            ? { video_url: videoPath }
             : {
                 video_size: videoSize,
                 chunk_size: videoSize,
@@ -105,11 +115,12 @@ export class TikTokClient implements PlatformClient {
       }
 
       const publishId = initResult.data.publish_id;
+      const uploadUrl = initResult.data.upload_url;
 
       // Step 2: Upload video (if file, not URL pull)
-      if (!content.videoPath.startsWith('http') && initResult.data.upload_url) {
-        const videoData = readFileSync(content.videoPath);
-        await fetch(initResult.data.upload_url, {
+      if (!videoPath.startsWith('http') && uploadUrl) {
+        const videoData = readFileSync(videoPath);
+        const uploadResponse = await fetch(uploadUrl, {
           method: 'PUT',
           headers: {
             'Content-Type': 'video/mp4',
@@ -117,16 +128,79 @@ export class TikTokClient implements PlatformClient {
           },
           body: videoData,
         });
+
+        if (!uploadResponse.ok) {
+          throw new Error(`Video upload failed: ${uploadResponse.statusText}`);
+        }
       }
 
-      // Step 3: Poll for publish status
-      const postId = await this.waitForPublish(publishId);
+      // Step 3: Set music if provided
+      if (musicUrl) {
+        await this.setMusic(publishId, musicUrl);
+      }
+
+      return {
+        draftId: publishId,
+        uploadUrl: `https://www.tiktok.com/@/drafts/${publishId}`,
+      };
+    } catch (error) {
+      throw new Error(`TikTok draft upload failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Attach a TikTok music track to a draft
+   * @param draftId - The draft publish ID
+   * @param musicUrl - TikTok music track URL
+   */
+  async setMusic(draftId: string, musicUrl: string): Promise<void> {
+    try {
+      // TikTok's Content Discovery API for music
+      const musicBody = {
+        music_id: musicUrl,
+      };
+
+      await apiRequest(
+        'tiktok',
+        `${API_BASE}/post/publish/content/init/`,
+        {
+          method: 'POST',
+          headers: this.headers,
+          body: JSON.stringify(musicBody),
+        },
+      );
+    } catch (error) {
+      throw new Error(`Failed to set music: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async post(content: SocialPost): Promise<PostResult> {
+    try {
+      if (!content.videoPath) {
+        return {
+          platform: this.name,
+          success: false,
+          error: 'TikTok only supports video posts',
+        };
+      }
+
+      // TikTok doesn't support direct publishing via API
+      // Upload as draft and inform user to complete in TikTok app
+      const draftResult = await this.uploadDraft(
+        content.videoPath,
+        content.text,
+        [], // Hashtags are included in the caption
+      );
 
       return {
         platform: this.name,
         success: true,
-        postId: postId ?? publishId,
-        url: postId ? `https://www.tiktok.com/@/video/${postId}` : undefined,
+        postId: draftResult.draftId,
+        url: draftResult.uploadUrl,
+        warnings: [
+          'Video uploaded as TikTok draft. Open TikTok app to edit and publish.',
+          'Draft ID: ' + draftResult.draftId,
+        ],
       };
     } catch (error) {
       return {

@@ -11,6 +11,7 @@ export interface PostResult {
   postId?: string;
   url?: string;
   error?: string;
+  warnings?: string[];
 }
 
 export interface AnalyticsData {
