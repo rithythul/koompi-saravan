@@ -5,17 +5,12 @@
  * Uses Gemini Flash for content and Nano Banana for image generation
  */
 
+// Content and image generation
 export * from './ai-generator.js';
 export * from './image-generator.js';
-export * from './service.js';
+
+// High-level orchestration (use this for API/tool integration)
 export * from './orchestrator.js';
 
-export type { SlideshowConfig, GenerateSlideshowOptions } from './service.js';
-export type { SlideContent, GenerateSlideContentOptions } from './ai-generator.js';
-export type { ImageGenerationOptions, GeneratedImage } from './image-generator.js';
-export type {
-  GenerateSlideshowRequest,
-  SlideResult,
-  GenerateSlideshowResult,
-  SlideshowManifest
-} from './orchestrator.js';
+// Internal utilities (not typically used directly)
+export { getDimensions, type Dimensions, type AspectRatio, type SlideStyle } from './types.js';

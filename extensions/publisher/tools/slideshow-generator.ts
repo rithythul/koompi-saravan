@@ -1,342 +1,394 @@
 /**
- * Slideshow Generator - Advanced Content Generation
+ * Slideshow Generator - AI-Powered Content Creation
  *
- * Multi-template slideshow generation with text positioning, styling, and background controls
+ * Generates slideshow content and renders images using Gemini AI and Playwright
  */
 
 import { randomUUID } from 'crypto';
-import { promises as fs } from 'fs';
+import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
+import { Type } from '@sinclair/typebox';
 
-export type SlideType = 'image_pack' | 'custom_image' | 'solid_color' | 'gradient';
+import { generateSlideContent, createSlideshowConfig, renderSlideshow, type SlideshowConfig, type GenerateSlideshowOptions, type Slide } from '../../../src/slideshow/index.js';
+import { generateImages } from '../lib/gemini-client.js';
+import { createRunOutputPaths, resolveSafeAssetPath } from '../lib/output-paths.js';
+import { createRun, initStore, saveGeneratedAsset, updateRunStatus } from '../lib/store.js';
 
-export type TextStyle = {
-  fontSize?: 'small' | 'default' | 'large' | number;
-  fontWeight?: 'normal' | 'bold' | 'black';
-  textAlign?: 'left' | 'center' | 'right';
-  textColor?: string;
-  textWidth?: 'default' | 'narrow' | 'wide';
-  position?: {
-    x: number;
-    y: number;
-  };
-};
-
-export type BackgroundFilter = {
-  type: 'darken' | 'blur' | 'gradient_overlay';
-  intensity?: number; // 0-100
-  color?: string;
-};
-
-export type Slide = {
-  id: string;
-  index: number;
-  type: SlideType;
-  imageUrl?: string;
-  backgroundColor?: string;
-  gradientColors?: [string, string];
-  backgroundFilter?: BackgroundFilter;
-  text: string;
-  textElements?: Array<{
-    id: string;
-    content: string;
-    x: number;
-    y: number;
-    fontSize?: number;
-    width?: number;
-  }>;
-  textStyle: TextStyle;
-};
-
-export type SlideshowConfig = {
-  id: string;
-  name?: string;
-  aspectRatio: '9:16' | '4:5' | '1:1' | '16:9';
-  slides: Slide[];
-  style: 'tiktok' | 'instagram' | 'professional' | 'minimal';
-  language: string;
-  status: 'draft' | 'rendering' | 'rendered' | 'failed';
-  renderedUrls?: string[];
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type SlideshowGeneratorOptions = {
-  prompt: string;
-  packId?: string;
-  slides?: number;
-  aspectRatio?: '9:16' | '4:5' | '1:1' | '16:9';
-  style?: 'tiktok' | 'instagram' | 'professional' | 'minimal';
-  language?: string;
-  slideConfig?: {
-    totalSlides: number;
-    slideTypes: SlideType[];
-    pinnedImages?: Record<number, string>;
-    customImages?: Record<number, { imageUrl: string; imageId?: string }>;
-    slideTexts?: Record<number, string>;
-    packAssignments?: Record<number, string>;
-  };
-};
+const STORAGE_BASE_DIR = './var/slideshows';
 
 /**
- * Generate a slideshow from prompt or manual config
+ * Store slideshow configuration to disk
+ */
+async function saveSlideshowConfig(config: SlideshowConfig): Promise<void> {
+  const configPath = join(config.outputDir, 'slideshow.json');
+  await mkdir(config.outputDir, { recursive: true });
+  await writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
+}
+
+/**
+ * Load slideshow configuration from disk
+ */
+async function loadSlideshowConfig(slideshowId: string, baseDir: string = STORAGE_BASE_DIR): Promise<SlideshowConfig | null> {
+  try {
+    const configPath = join(baseDir, slideshowId, 'slideshow.json');
+    const { readFile } = await import('fs/promises');
+    const content = await readFile(configPath, 'utf-8');
+    return JSON.parse(content) as SlideshowConfig;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get image pack images
+ */
+async function getPackImages(packId: string): Promise<string[]> {
+  // Try to load from pack manager
+  try {
+    const { getPack } = await import('./pack-manager.js');
+    const pack = await getPack(packId, { packsDir: './var/packs' });
+    return pack?.images.map(img => img.url) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Generate slideshow with AI content and optional AI images
  */
 export async function generateSlideshow(
-  options: SlideshowGeneratorOptions,
-  config: { outputDir: string; packsDir: string } = { outputDir: './var/outputs', packsDir: './var/packs' },
-): Promise<SlideshowConfig> {
-  const slideCount = options.slides || options.slideConfig?.totalSlides || 5;
-  const aspectRatio = options.aspectRatio || '9:16';
-  const style = options.style || 'tiktok';
-  const language = options.language || 'en';
+  options: GenerateSlideshowOptions & { config?: any },
+): Promise<{
+  success: boolean;
+  slideshowId: string;
+  outputDir: string;
+  slides: Slide[];
+  imagePaths: string[];
+  error?: string;
+}> {
+  const slideshowId = randomUUID();
+  const outputDir = resolveSafeAssetPath(STORAGE_BASE_DIR, slideshowId);
 
-  const slideshow: SlideshowConfig = {
-    id: randomUUID(),
-    aspectRatio,
-    slides: [],
-    style,
-    language,
-    status: 'draft',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+  const slideCount = options.slideCount ?? 5;
+  const useAiImages = options.useAiImages ?? true;
+  const packId = options.packId;
 
-  // Generate slides based on config or AI prompt
-  if (options.slideConfig) {
-    // Manual/mixed mode
-    for (let i = 0; i < options.slideConfig.totalSlides; i++) {
-      const slideType = options.slideConfig.slideTypes[i] || 'image_pack';
-      const slide: Slide = {
-        id: randomUUID(),
-        index: i,
-        type: slideType,
-        text: options.slideConfig.slideTexts?.[i] || '',
-        textStyle: getDefaultTextStyle(style),
-      };
+  try {
+    // 1. Generate slide content via Gemini
+    const slides = await generateSlideContent({
+      prompt: options.prompt,
+      slideCount,
+      style: options.style ?? 'tiktok',
+      language: options.language ?? 'en',
+    });
 
-      if (slideType === 'custom_image' && options.slideConfig.customImages?.[i]) {
-        slide.imageUrl = options.slideConfig.customImages[i].imageUrl;
-      } else if (slideType === 'image_pack') {
-        const packId = options.slideConfig.packAssignments?.[i] || options.packId;
-        const pinnedUrl = options.slideConfig.pinnedImages?.[i];
-        if (pinnedUrl) {
-          slide.imageUrl = pinnedUrl;
+    // 2. Create slideshow config
+    const config = createSlideshowConfig(
+      {
+        ...options,
+        slideCount,
+        useAiImages,
+        packId,
+      },
+      slides,
+      outputDir,
+    );
+    config.status = 'generating';
+    await saveSlideshowConfig(config);
+
+    // 3. Generate images if needed
+    const imageUrls: string[][] = [];
+
+    if (useAiImages && !packId) {
+      // Generate images via Gemini for each slide
+      config.status = 'rendering';
+      await saveSlideshowConfig(config);
+
+      for (const slide of slides) {
+        try {
+          const images = await generateImages({
+            prompt: slide.imagePrompt,
+            count: 1,
+          });
+
+          if (images.length > 0) {
+            const imageBuffer = Buffer.from(images[0].data, 'base64');
+            const imagePath = resolveSafeAssetPath(outputDir, `slide-${String(slide.index).padStart(3, '0')}-bg.png`);
+            await mkdir(outputDir, { recursive: true });
+            await writeFile(imagePath, imageBuffer);
+            imageUrls[slide.index] = [imagePath];
+            slide.generatedImagePath = imagePath;
+          }
+        } catch (error) {
+          console.error(`Failed to generate image for slide ${slide.index}:`, error);
+          // Continue without image for this slide
         }
-        // If no pinned image, mark for later assignment
       }
-
-      slideshow.slides.push(slide);
+    } else if (packId) {
+      // Use images from pack
+      const packImages = await getPackImages(packId);
+      for (let i = 0; i < slides.length; i++) {
+        if (packImages.length > 0) {
+          // Cycle through pack images
+          const imgUrl = packImages[i % packImages.length];
+          imageUrls[i] = [imgUrl];
+        }
+      }
     }
-  } else {
-    // AI mode - generate from prompt
-    for (let i = 0; i < slideCount; i++) {
-      const slide: Slide = {
-        id: randomUUID(),
-        index: i,
-        type: 'image_pack',
-        text: '', // Will be filled by AI
-        textStyle: getDefaultTextStyle(style),
+
+    // 4. Render slides with text overlays
+    const renderedPaths = await renderSlideshow(config, imageUrls.length > 0 ? imageUrls : undefined);
+
+    // 5. Update config as completed
+    config.status = 'completed';
+    config.renderedUrls = renderedPaths;
+    await saveSlideshowConfig(config);
+
+    return {
+      success: true,
+      slideshowId,
+      outputDir,
+      slides,
+      imagePaths: renderedPaths,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // Save failed config
+    try {
+      const config: SlideshowConfig = {
+        id: slideshowId,
+        prompt: options.prompt,
+        slideCount,
+        aspectRatio: options.aspectRatio ?? '9:16',
+        style: options.style ?? 'tiktok',
+        language: options.language ?? 'en',
+        useAiImages,
+        packId,
+        backgroundFilter: options.backgroundFilter ?? 'darken',
+        slides: [],
+        status: 'failed',
+        outputDir,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        error: errorMessage,
       };
-      slideshow.slides.push(slide);
+      await saveSlideshowConfig(config);
+    } catch {
+      // Ignore save errors
     }
 
-    // TODO: Call Gemini to generate slide text from prompt
-    // Use the 5-slide narrative arc: hook → problem → shift → proof → CTA
+    return {
+      success: false,
+      slideshowId,
+      outputDir,
+      slides: [],
+      imagePaths: [],
+      error: errorMessage,
+    };
   }
-
-  return slideshow;
 }
 
 /**
- * Render a slideshow to images via Remotion
+ * Get slideshow status and result
  */
-export async function renderSlideshow(
-  slideshowId: string,
-  config: { outputDir: string } = { outputDir: './var/outputs' },
-): Promise<{ renderedUrls: string[] }> {
-  // TODO: Call Remotion to render each slide
-  // 1. Load slideshow config
-  // 2. For each slide, compose image + text + filters
-  // 3. Render to PNG/JPEG
-  // 4. Upload to storage
-  // 5. Return URLs
-
-  throw new Error('Slideshow rendering not yet implemented');
+export async function getSlideshow(slideshowId: string): Promise<SlideshowConfig | null> {
+  return loadSlideshowConfig(slideshowId, STORAGE_BASE_DIR);
 }
 
 /**
- * Update a slideshow
+ * List recent slideshows
  */
-export async function updateSlideshow(
-  slideshowId: string,
-  updates: {
-    name?: string;
-    slides?: Slide[];
-    status?: SlideshowConfig['status'];
-  },
-  config: { outputDir: string } = { outputDir: './var/outputs' },
-): Promise<SlideshowConfig> {
-  // TODO: Load slideshow, apply updates, save
-  throw new Error('Slideshow update not yet implemented');
+export async function listSlideshows(limit: number = 20): Promise<SlideshowConfig[]> {
+  try {
+    const { readdir } = await import('fs/promises');
+    const entries = await readdir(STORAGE_BASE_DIR, { withFileTypes: true });
+
+    const slideshows: SlideshowConfig[] = [];
+    for (const entry of entries) {
+      if (entry.isDirectory) {
+        const config = await loadSlideshowConfig(entry.name, STORAGE_BASE_DIR);
+        if (config) {
+          slideshows.push(config);
+        }
+      }
+    }
+
+    // Sort by creation date, newest first
+    slideshows.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    return slideshows.slice(0, limit);
+  } catch {
+    return [];
+  }
 }
 
-/**
- * Get default text style for a given style preset
- */
-function getDefaultTextStyle(style: 'tiktok' | 'instagram' | 'professional' | 'minimal'): TextStyle {
-  const defaults: Record<string, TextStyle> = {
-    tiktok: {
-      fontSize: 'default',
-      fontWeight: 'bold',
-      textAlign: 'center',
-      textColor: '#FFFFFF',
-      textWidth: 'narrow',
-    },
-    instagram: {
-      fontSize: 'default',
-      fontWeight: 'normal',
-      textAlign: 'center',
-      textColor: '#FFFFFF',
-    },
-    professional: {
-      fontSize: 'small',
-      fontWeight: 'normal',
-      textAlign: 'left',
-      textColor: '#000000',
-    },
-    minimal: {
-      fontSize: 'default',
-      fontWeight: 'normal',
-      textAlign: 'center',
-      textColor: '#FFFFFF',
-    },
-  };
+// ============================================================================
+// OpenClaw Tool Definitions
+// ============================================================================
 
-  return defaults[style] || defaults.tiktok;
-}
-
-/**
- * OpenClaw tool definitions
- */
 export const generateSlideshowTool = {
   name: 'generate_slideshow',
-  description: 'Generate a slideshow from a prompt (AI mode) or manual config. Supports 5-slide narrative arc with pinned images.',
-  parameters: {
-    type: 'object',
-    properties: {
-      prompt: {
-        type: 'string',
-        description: 'Content prompt for AI-generated slideshow',
-      },
-      pack_id: {
-        type: 'string',
-        description: 'Image pack ID for backgrounds',
-      },
-      slides: {
-        type: 'number',
-        description: 'Number of slides (1-10, default: 5)',
-      },
-      aspect_ratio: {
-        type: 'string',
-        enum: ['9:16', '4:5', '1:1', '16:9'],
-        description: 'Slide aspect ratio (default: 9:16)',
-      },
-      style: {
-        type: 'string',
-        enum: ['tiktok', 'instagram', 'professional', 'minimal'],
+  description: 'Generate an AI-powered slideshow for social media. Creates engaging slide content with text and images, ready for TikTok, Instagram, or other platforms.',
+  parameters: Type.Object({
+    prompt: Type.String({
+      description: 'Content prompt for the slideshow (e.g., "5 morning habits that changed my life")',
+      minLength: 5,
+      maxLength: 500,
+    }),
+    slideCount: Type.Optional(
+      Type.Number({
+        description: 'Number of slides to generate (default: 5, max: 10)',
+        minimum: 1,
+        maximum: 10,
+        default: 5,
+      }),
+    ),
+    aspectRatio: Type.Optional(
+      Type.Union([
+        Type.Literal('9:16'),
+        Type.Literal('4:5'),
+        Type.Literal('1:1'),
+        Type.Literal('16:9'),
+      ], {
+        description: 'Slide aspect ratio (default: 9:16 for TikTok/Reels)',
+      }),
+    ),
+    style: Type.Optional(
+      Type.Union([
+        Type.Literal('tiktok'),
+        Type.Literal('instagram'),
+        Type.Literal('educational'),
+        Type.Literal('minimal'),
+      ], {
         description: 'Visual style preset (default: tiktok)',
-      },
-      slide_config_json: {
-        type: 'string',
-        description: 'JSON string with manual slide configuration',
-      },
-    },
-  },
+      }),
+    ),
+    language: Type.Optional(
+      Type.String({
+        description: 'Content language (default: en)',
+        default: 'en',
+      }),
+    ),
+    useAiImages: Type.Optional(
+      Type.Boolean({
+        description: 'Generate AI images for each slide (default: true)',
+        default: true,
+      }),
+    ),
+    packId: Type.Optional(
+      Type.String({
+        description: 'Optional image pack ID to use instead of AI-generated images',
+      }),
+    ),
+    backgroundFilter: Type.Optional(
+      Type.Union([
+        Type.Literal('none'),
+        Type.Literal('darken'),
+        Type.Literal('blur'),
+        Type.Literal('gradient'),
+      ], {
+        description: 'Background filter for text readability (default: darken)',
+      }),
+    ),
+  }),
 };
 
-export const renderSlideshowTool = {
-  name: 'render_slideshow',
-  description: 'Render a slideshow to images via Remotion. Returns CDN URLs for each slide.',
-  parameters: {
-    type: 'object',
-    properties: {
-      slideshow_id: {
-        type: 'string',
-        description: 'Slideshow ID to render',
-      },
-    },
-    required: ['slideshow_id'],
-  },
+export const getSlideshowTool = {
+  name: 'get_slideshow',
+  description: 'Get slideshow status and results by ID',
+  parameters: Type.Object({
+    slideshowId: Type.String({
+      description: 'Slideshow ID',
+    }),
+  }),
 };
 
-export const updateSlideshowTool = {
-  name: 'update_slideshow',
-  description: 'Update slideshow slides, text, style, or status. Use to fix readability issues before rendering.',
-  parameters: {
-    type: 'object',
-    properties: {
-      slideshow_id: {
-        type: 'string',
-        description: 'Slideshow ID to update',
-      },
-      slides_json: {
-        type: 'string',
-        description: 'JSON array of updated slides',
-      },
-      status: {
-        type: 'string',
-        enum: ['draft', 'rendering', 'rendered', 'failed'],
-        description: 'New status',
-      },
-    },
-    required: ['slideshow_id'],
-  },
+export const listSlideshowsTool = {
+  name: 'list_slideshows',
+  description: 'List recent slideshows',
+  parameters: Type.Object({
+    limit: Type.Optional(
+      Type.Number({
+        description: 'Maximum number to return (default: 20)',
+        default: 20,
+      }),
+    ),
+  }),
 };
+
+// ============================================================================
+// Tool Factory Functions
+// ============================================================================
 
 export function createGenerateSlideshowTool(config: any = {}) {
   return {
     ...generateSlideshowTool,
     execute: async (params: any) => {
-      let slideConfig = undefined;
-      if (params.slide_config_json) {
-        slideConfig = JSON.parse(params.slide_config_json);
-      }
-      return generateSlideshow(
-        {
-          prompt: params.prompt,
-          packId: params.pack_id,
-          slides: params.slides,
-          aspectRatio: params.aspect_ratio,
-          style: params.style,
-          slideConfig,
-        },
-        { outputDir: config.defaultOutputDir, packsDir: config.packsDir },
-      );
+      const result = await generateSlideshow({
+        prompt: params.prompt,
+        slideCount: params.slideCount,
+        aspectRatio: params.aspectRatio,
+        style: params.style,
+        language: params.language,
+        useAiImages: params.useAiImages,
+        packId: params.packId,
+        backgroundFilter: params.backgroundFilter,
+        config,
+      });
+
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+      };
     },
   };
 }
 
-export function createRenderSlideshowTool(config: any = {}) {
+export function createGetSlideshowTool(config: any = {}) {
   return {
-    ...renderSlideshowTool,
+    ...getSlideshowTool,
     execute: async (params: any) => {
-      return renderSlideshow(params.slideshow_id, { outputDir: config.defaultOutputDir });
+      const slideshow = await getSlideshow(params.slideshowId);
+      if (!slideshow) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: JSON.stringify({ error: 'Slideshow not found', slideshowId: params.slideshowId }, null, 2),
+            },
+          ],
+        };
+      }
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify(slideshow, null, 2),
+          },
+        ],
+      };
     },
   };
 }
 
-export function createUpdateSlideshowTool(config: any = {}) {
+export function createListSlideshowsTool(config: any = {}) {
   return {
-    ...updateSlideshowTool,
+    ...listSlideshowsTool,
     execute: async (params: any) => {
-      const updates: any = {};
-      if (params.slides_json) {
-        updates.slides = JSON.parse(params.slides_json);
-      }
-      if (params.status) {
-        updates.status = params.status;
-      }
-      return updateSlideshow(params.slideshow_id, updates, { outputDir: config.defaultOutputDir });
+      const slideshows = await listSlideshows(params.limit);
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({ slideshows, total: slideshows.length }, null, 2),
+          },
+        ],
+      };
     },
   };
 }

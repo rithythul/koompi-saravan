@@ -54,6 +54,7 @@ import publishRoutes from './routes/publish.js';
 import analyticsRoutes from './routes/analytics.js';
 import mediaRoutes from './routes/media.js';
 import platformRoutes from './routes/platforms.js';
+import slideshowRoutes from './routes/slideshow.js';
 
 // Register routes with auth
 const apiRoutes = new Hono<{ Bindings: Bindings }>();
@@ -62,6 +63,7 @@ apiRoutes.route('/publish', publishRoutes);
 apiRoutes.route('/analytics', analyticsRoutes);
 apiRoutes.route('/media', mediaRoutes);
 apiRoutes.route('/platforms', platformRoutes);
+apiRoutes.route('/slideshow', slideshowRoutes);
 
 app.route('/api', apiRoutes);
 

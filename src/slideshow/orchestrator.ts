@@ -6,7 +6,7 @@
  */
 
 import { randomUUID } from 'crypto';
-import { mkdir, writeFile } from 'fs/promises';
+import { mkdir, writeFile, readFile, readdir, rm } from 'fs/promises';
 import { join } from 'path';
 
 import { generateSlideContent, generateFallbackSlides, type SlideContent } from './ai-generator.js';
@@ -190,7 +190,6 @@ async function saveManifest(manifest: SlideshowManifest, outputDir: string): Pro
 export async function loadSlideshowManifest(id: string): Promise<SlideshowManifest | null> {
   try {
     const manifestPath = join(DEFAULT_OUTPUT_DIR, id, 'manifest.json');
-    const { readFile } = await import('fs/promises');
     const content = await readFile(manifestPath, 'utf-8');
     return JSON.parse(content) as SlideshowManifest;
   } catch {
@@ -203,12 +202,11 @@ export async function loadSlideshowManifest(id: string): Promise<SlideshowManife
  */
 export async function listSlideshows(limit = 50): Promise<SlideshowManifest[]> {
   try {
-    const { readdir } = await import('fs/promises');
     const entries = await readdir(DEFAULT_OUTPUT_DIR, { withFileTypes: true });
 
     const slideshows: SlideshowManifest[] = [];
     for (const entry of entries) {
-      if (entry.isDirectory) {
+      if (entry.isDirectory()) {
         const manifest = await loadSlideshowManifest(entry.name);
         if (manifest) {
           slideshows.push(manifest);
@@ -249,7 +247,6 @@ export async function getSlideshow(id: string): Promise<GenerateSlideshowResult 
  */
 export async function deleteSlideshow(id: string): Promise<boolean> {
   try {
-    const { rm } = await import('fs/promises');
     const slideshowDir = join(DEFAULT_OUTPUT_DIR, id);
     await rm(slideshowDir, { recursive: true, force: true });
     return true;

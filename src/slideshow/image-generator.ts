@@ -65,10 +65,7 @@ Image specifications:
       model: 'gemini-2.0-flash-exp',
     });
 
-    const result = await model.generateContent(
-      enhancedPrompt,
-      { requestOptions: { signal: controller.signal } }
-    );
+    const result = await model.generateContent(enhancedPrompt);
     clearTimeout(timeoutId);
 
     const response = await result.response;
