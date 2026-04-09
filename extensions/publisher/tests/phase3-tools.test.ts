@@ -29,7 +29,7 @@ describe('phase 3 tools', () => {
     const result = await tool.execute('tool-call', {
       platform: 'tiktok',
       platformPostId: 'tt-live-1',
-      postedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 - 2 * 60 * 60 * 1000 - 15 * 60 * 1000).toISOString(),
+      postedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().replace(/T\d{2}:/, 'T17:').replace(/:\d{2}\.\d{3}Z$/, ':45.000Z'),
       contentType: 'hook_reveal',
       videoPath: '/tmp/hook-reveal.mp4',
       caption: 'Caption',
