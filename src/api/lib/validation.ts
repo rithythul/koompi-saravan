@@ -50,6 +50,8 @@ export const publishRequestSchema = z.object({
   platforms: platformsArraySchema,
   content: publishContentSchema,
   options: publishOptionsSchema.optional(),
+  external_id: z.string().optional(),
+  idempotency_key: z.string().optional(),
 });
 
 // Analytics query schemas

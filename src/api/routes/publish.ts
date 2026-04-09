@@ -13,6 +13,7 @@ import { postToAll, createClient, ALL_PLATFORMS } from '../../platforms/manager.
 import type { PlatformName } from '../../platforms/index.js';
 import * as db from '../lib/db.js';
 import { publishRequestSchema, platformsArraySchema } from '../lib/validation.js';
+import { computeContentHash, findDuplicateByContentHash, findDuplicateByExternalId } from '../lib/db.js';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -41,6 +42,63 @@ app.post('/', zValidator('json', publishRequestSchema), async (c) => {
       });
       const ok = results.filter(r => r.success).length;
       return c.json({ results, summary: { total: results.length, successful: ok, failed: results.length - ok, skipped: 0 } } as BatchPublishResponse);
+    }
+
+    // Idempotency check: Check for duplicate by external_id first
+    if (body.external_id) {
+      const duplicateByExternalId = await findDuplicateByExternalId(body.external_id);
+      if (duplicateByExternalId) {
+        const hoursAgo = Math.floor((Date.now() - duplicateByExternalId.published_at!.getTime()) / (1000 * 60 * 60));
+        return c.json({
+          results: [{
+            platform: duplicateByExternalId.platform,
+            success: true,
+            postId: duplicateByExternalId.id,
+            postUrl: duplicateByExternalId.platform_post_id
+              ? `https://${duplicateByExternalId.platform}.com/p/${duplicateByExternalId.platform_post_id}`
+              : undefined,
+            warnings: ['duplicate post'],
+          }],
+          summary: { total: 1, successful: 1, failed: 0, skipped: 0 },
+          status: 'duplicate',
+          duplicateInfo: {
+            existingPostId: duplicateByExternalId.id,
+            message: `Identical content was published ${hoursAgo} hours ago via external_id`,
+            publishedAt: duplicateByExternalId.published_at!.toISOString(),
+          },
+        } as BatchPublishResponse, 200);
+      }
+    }
+
+    // Idempotency check: Check for duplicate by content hash
+    const contentHash = body.idempotency_key || await computeContentHash(
+      platforms.join(','),
+      body.content.type,
+      body.content.caption,
+      body.content.mediaUrl
+    );
+
+    const duplicateByHash = await findDuplicateByContentHash(contentHash, 24);
+    if (duplicateByHash) {
+      const hoursAgo = Math.floor((Date.now() - duplicateByHash.published_at!.getTime()) / (1000 * 60 * 60));
+      return c.json({
+        results: [{
+          platform: duplicateByHash.platform,
+          success: true,
+          postId: duplicateByHash.id,
+          postUrl: duplicateByHash.platform_post_id
+            ? `https://${duplicateByHash.platform}.com/p/${duplicateByHash.platform_post_id}`
+            : undefined,
+          warnings: ['duplicate post'],
+        }],
+        summary: { total: 1, successful: 1, failed: 0, skipped: 0 },
+        status: 'duplicate',
+        duplicateInfo: {
+          existingPostId: duplicateByHash.id,
+          message: `Identical content was published ${hoursAgo} hours ago`,
+          publishedAt: duplicateByHash.published_at!.toISOString(),
+        },
+      } as BatchPublishResponse, 200);
     }
 
     // Publish
@@ -75,14 +133,18 @@ app.post('/', zValidator('json', publishRequestSchema), async (c) => {
           published_at: new Date(),
           status: 'published',
           error_message: null,
+          content_hash: contentHash,
+          external_id: body.external_id || null,
         });
       }
     }
 
     const ok = results.filter(r => r.success).length;
+    const overallStatus = ok === platforms.length ? 'success' : ok > 0 ? 'partial' : 'failed';
     return c.json({
       results,
       summary: { total: results.length, successful: ok, failed: results.length - ok, skipped: 0 },
+      status: overallStatus,
     } as BatchPublishResponse);
   } catch (error) {
     console.error('Publish error:', error);

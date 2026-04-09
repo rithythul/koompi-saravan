@@ -44,6 +44,8 @@ export interface PublishRequest {
     dryRun?: boolean;
     validateOnly?: boolean;
   };
+  external_id?: string;
+  idempotency_key?: string;
 }
 
 export interface PublishResponse {
@@ -62,6 +64,12 @@ export interface BatchPublishResponse {
     successful: number;
     failed: number;
     skipped: number;
+  };
+  status?: 'success' | 'partial' | 'duplicate' | 'failed';
+  duplicateInfo?: {
+    existingPostId: string;
+    message: string;
+    publishedAt: string;
   };
 }
 

@@ -22,6 +22,8 @@ export interface PostRecord {
   published_at: Date | null;
   status: 'pending' | 'publishing' | 'published' | 'failed' | 'deleted';
   error_message: string | null;
+  content_hash: string | null;
+  external_id: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -92,6 +94,8 @@ export async function initDb(): Promise<boolean> {
         published_at TIMESTAMPTZ,
         status TEXT NOT NULL DEFAULT 'pending',
         error_message TEXT,
+        content_hash TEXT,
+        external_id TEXT,
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW()
       )
@@ -101,6 +105,8 @@ export async function initDb(): Promise<boolean> {
     await sql`CREATE INDEX IF NOT EXISTS idx_posts_platform ON posts(platform)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_posts_status ON posts(status)`;
     await sql`CREATE INDEX IF NOT EXISTS idx_posts_published_at ON posts(published_at)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_posts_content_hash ON posts(content_hash)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_posts_external_id ON posts(external_id)`;
 
     // Create metrics table
     await sql`
@@ -162,11 +168,11 @@ export async function savePost(post: Omit<PostRecord, 'created_at' | 'updated_at
   await sql`
     INSERT INTO posts (
       id, platform, platform_post_id, content_type, media_url, caption, hashtags,
-      scheduled_at, published_at, status, error_message, created_at, updated_at
+      scheduled_at, published_at, status, error_message, content_hash, external_id, created_at, updated_at
     ) VALUES (
       ${post.id}, ${post.platform}, ${post.platform_post_id}, ${post.content_type},
       ${post.media_url}, ${post.caption}, ${post.hashtags}, ${post.scheduled_at},
-      ${post.published_at}, ${post.status}, ${post.error_message}, ${now}, ${now}
+      ${post.published_at}, ${post.status}, ${post.error_message}, ${post.content_hash}, ${post.external_id}, ${now}, ${now}
     )
     ON CONFLICT (id) DO UPDATE SET
       status = EXCLUDED.status,
@@ -244,6 +250,55 @@ export async function getPostsByPlatform(
   params.push(limit, offset);
 
   return await query<PostRecord>(queryString, params);
+}
+
+/**
+ * Compute a content hash for idempotency checking
+ * Hash format: SHA256(platform + type + caption + mediaUrl)
+ */
+export async function computeContentHash(platform: string, contentType: string, caption: string, mediaUrl: string): Promise<string> {
+  const data = `${platform}:${contentType}:${caption}:${mediaUrl}`;
+  const encoder = new TextEncoder();
+  const dataBytes = encoder.encode(data);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBytes);
+  const hashArray = new Uint8Array(hashBuffer);
+  return Array.from(hashArray, b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Find a duplicate post by content hash within the specified time window
+ * @param contentHash The content hash to search for
+ * @param hoursBack Number of hours to look back (default: 24)
+ * @returns The duplicate post record if found, null otherwise
+ */
+export async function findDuplicateByContentHash(contentHash: string, hoursBack: number = 24): Promise<PostRecord | null> {
+  if (!sql) throw new Error('PostgreSQL not connected');
+  const cutoffDate = new Date(Date.now() - hoursBack * 60 * 60 * 1000);
+  const result = await sql<PostRecord[]>`
+    SELECT * FROM posts
+    WHERE content_hash = ${contentHash}
+      AND published_at >= ${cutoffDate}
+      AND status = 'published'
+    ORDER BY published_at DESC
+    LIMIT 1
+  `;
+  return result[0] ?? null;
+}
+
+/**
+ * Find a duplicate post by external ID
+ * @param externalId The external ID to search for
+ * @returns The duplicate post record if found, null otherwise
+ */
+export async function findDuplicateByExternalId(externalId: string): Promise<PostRecord | null> {
+  if (!sql) throw new Error('PostgreSQL not connected');
+  const result = await sql<PostRecord[]>`
+    SELECT * FROM posts
+    WHERE external_id = ${externalId}
+    ORDER BY published_at DESC
+    LIMIT 1
+  `;
+  return result[0] ?? null;
 }
 
 // Metrics operations
