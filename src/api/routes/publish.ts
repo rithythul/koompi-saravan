@@ -17,7 +17,7 @@ import type {
   RetryResponse,
   RetryOptions,
 } from '../types.js';
-import { postToAll, createClient, ALL_PLATFORMS, retryPublishAll, MAX_RETRIES } from '../../platforms/manager.js';
+import { postToAll, createClient, ALL_PLATFORMS, retryPublishAll, MAX_RETRIES, classifyError } from '../../platforms/manager.js';
 import type { PlatformName } from '../../platforms/index.js';
 import * as db from '../lib/db.js';
 import { publishRequestSchema, platformsArraySchema } from '../lib/validation.js';
@@ -324,7 +324,7 @@ app.post('/retry/:postId', async (c) => {
       error: isMaxRetriesExceeded ? 'Max retries exceeded' : r.error,
     } as RetryResponse, isMaxRetriesExceeded ? 400 : 200);
   } catch (error) {
-    const errorType = db.classifyError(error);
+    const errorType = classifyError(error);
     await db.savePost({
       ...post,
       status: 'failed',

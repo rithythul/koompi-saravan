@@ -520,49 +520,6 @@ export async function getAnalyticsSummary(platforms: string[], daysBack: number 
 }
 
 /**
- * Classify an error as transient or permanent based on error message/status
- */
-export function classifyError(error: string | Error | unknown): ErrorType {
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  const lowerMessage = errorMessage.toLowerCase();
-
-  // Transient errors (should retry)
-  const transientPatterns = [
-    'timeout', 'timed out', 'etimedout', 'esockettimedout',
-    'econnreset', 'econnrefused', 'network',
-    'rate limit', '429', 'too many requests',
-    '503', 'service unavailable', '502', 'bad gateway',
-    '504', 'gateway timeout',
-    'temporary', 'try again', 'unavailable',
-  ];
-
-  // Permanent errors (should not retry)
-  const permanentPatterns = [
-    '401', 'unauthorized', 'authentication',
-    '403', 'forbidden',
-    '404', 'not found',
-    '400', 'bad request', 'invalid',
-    'access token', 'expired token', 'invalid token',
-    'permission denied', 'not allowed',
-  ];
-
-  for (const pattern of permanentPatterns) {
-    if (lowerMessage.includes(pattern)) {
-      return 'permanent';
-    }
-  }
-
-  for (const pattern of transientPatterns) {
-    if (lowerMessage.includes(pattern)) {
-      return 'transient';
-    }
-  }
-
-  // Default to permanent for unknown errors
-  return 'permanent';
-}
-
-/**
  * Update post with retry information
  */
 export async function updatePostRetry(
