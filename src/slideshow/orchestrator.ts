@@ -206,7 +206,8 @@ export async function listSlideshows(limit = 50): Promise<SlideshowManifest[]> {
 
     const slideshows: SlideshowManifest[] = [];
     for (const entry of entries) {
-      if (entry.isDirectory()) {
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      if (entry.isDirectory) {
         const manifest = await loadSlideshowManifest(entry.name);
         if (manifest) {
           slideshows.push(manifest);

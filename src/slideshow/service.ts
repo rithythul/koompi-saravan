@@ -196,7 +196,8 @@ export async function listSlideshows(limit: number = 20): Promise<SlideshowConfi
 
     const slideshows: SlideshowConfig[] = [];
     for (const entry of entries) {
-      if (entry.isDirectory()) {
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      if (entry.isDirectory) {
         const config = await loadSlideshowConfig(entry.name, STORAGE_BASE_DIR);
         if (config) {
           slideshows.push(config);
