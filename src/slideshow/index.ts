@@ -11,6 +11,3 @@ export * from './image-generator.js';
 
 // High-level orchestration (use this for API/tool integration)
 export * from './orchestrator.js';
-
-// Internal utilities (not typically used directly)
-export { getDimensions, type Dimensions, type AspectRatio, type SlideStyle } from './types.js';

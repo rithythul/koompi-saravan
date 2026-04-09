@@ -153,36 +153,3 @@ export async function generateSlideImages(
   return generated;
 }
 
-/**
- * Generate images with retry logic
- */
-export async function generateSlideImageWithRetry(
-  options: ImageGenerationOptions & { retries?: number; retryDelay?: number },
-): Promise<GeneratedImage> {
-  const { retries = 2, retryDelay = 2000, ...imageOptions } = options;
-
-  let lastError: Error | undefined;
-
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      return await generateSlideImage(imageOptions);
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-
-      if (attempt < retries) {
-        const delay = retryDelay * Math.pow(2, attempt); // Exponential backoff
-        console.log(`Image generation attempt ${attempt + 1} failed, retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-  }
-
-  throw lastError;
-}
-
-/**
- * Get dimensions for an aspect ratio
- */
-export function getAspectRatioDimensions(aspectRatio: '9:16' | '4:5' | '1:1' | '16:9'): { width: number; height: number } {
-  return ASPECT_RATIO_DIMENSIONS[aspectRatio];
-}
