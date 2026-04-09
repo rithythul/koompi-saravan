@@ -84,11 +84,11 @@ import {
 } from './tools/folder-manager.js';
 import {
   createGenerateSlideshowTool,
-  createRenderSlideshowTool,
-  createUpdateSlideshowTool,
+  createGetSlideshowTool,
+  createListSlideshowsTool,
   generateSlideshowTool,
-  renderSlideshowTool,
-  updateSlideshowTool,
+  getSlideshowTool,
+  listSlideshowsTool,
 } from './tools/slideshow-generator.js';
 import {
   createTrendBriefTool,
@@ -179,9 +179,9 @@ export function createRegisteredTools(configOverrides: GoogleMediaConfigInput = 
     createFolderItemsAddTool(configOverrides),
     createFolderItemsRemoveTool(configOverrides),
     // Slideshow Generation
-    createGenerateSlideshowTool(configOverrides),
-    createRenderSlideshowTool(configOverrides),
-    createUpdateSlideshowTool(configOverrides),
+    createGenerateSlideshowTool(),
+    createGetSlideshowTool(),
+    createListSlideshowsTool(),
     // Trend Research
     createTrendBriefTool(configOverrides),
     // Analytics Aggregator
@@ -276,8 +276,8 @@ export const tools = {
   folderItemsRemove: folderItemsRemoveTool,
   // Slideshow Generation
   generateSlideshow: generateSlideshowTool,
-  renderSlideshow: renderSlideshowTool,
-  updateSlideshow: updateSlideshowTool,
+  getSlideshow: getSlideshowTool,
+  listSlideshows: listSlideshowsTool,
   // Trend Research
   trendBrief: trendBriefTool,
   // Analytics Aggregator
